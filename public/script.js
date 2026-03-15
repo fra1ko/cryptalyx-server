@@ -40,6 +40,15 @@ document.querySelectorAll('section').forEach(section => {
     observer.observe(section);
 });
 
+// Мобильное меню
+function toggleMobileMenu() {
+    const navLinks = document.querySelector('.nav-links');
+    navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
+}
+
+// Добавь эту функцию в window
+window.toggleMobileMenu = toggleMobileMenu;
+
 // ===== ФУНКЦИЯ ОБНОВЛЕНИЯ КНОПКИ АВТОРИЗАЦИИ =====
 function updateAuthButton() {
     const licenseKey = localStorage.getItem('licenseKey');
