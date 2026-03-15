@@ -5,6 +5,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cryptalyx — Умный портфель инвестора</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Дополнительные стили для главной */
+        .hero {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 6rem 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-stats {
+            background: #1e293b;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            border: 1px solid #334155;
+        }
+
+        .features {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .feature-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+        }
+
+        .how-it-works {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        }
+
+        .portfolio-preview {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .portfolio-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+
+        .pricing {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+        }
+
+        .pricing-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+        }
+
+        .pricing-card.popular {
+            border: 2px solid #3b82f6;
+        }
+
+        .ai-recommendations {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .recommendation-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+        }
+
+        .cta {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-top: 1px solid #334155;
+        }
+
+        footer {
+            background: #0f172a;
+            color: #94a3b8;
+            border-top: 1px solid #334155;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-outline {
+            border: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+
+        .btn-outline:hover {
+            background: #3b82f6;
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar">
@@ -112,91 +225,68 @@
     </section>
 
     <section class="portfolio-preview">
-        <div class="container">
-            <h2 class="section-title">Пример портфеля</h2>
-            <p class="section-subtitle">Так выглядит ваш личный кабинет</p>
-            
-            <div class="portfolio-card">
-                <div class="portfolio-header">
-                    <div>
-                        <h3>Мой портфель</h3>
-                        <p>Обновлен 2 минуты назад</p>
-                    </div>
-                    <div class="portfolio-total">
-                        <div class="portfolio-total-label">Общая стоимость</div>
-                        <div class="portfolio-total-value">$45,280.50</div>
-                        <div class="portfolio-change">+12.4% за месяц</div>
-                    </div>
+    <div class="container">
+        <h2 class="section-title">Пример портфеля</h2>
+        <p class="section-subtitle">Так выглядит ваш личный кабинет</p>
+        
+        <div class="portfolio-card">
+            <div class="portfolio-header">
+                <div>
+                    <h3>Мой портфель</h3>
+                    <p>Обновлен 2 минуты назад</p>
                 </div>
-
-                <table class="assets-table">
-                    <thead>
-                        <tr>
-                            <th>Актив</th>
-                            <th>Баланс</th>
-                            <th>Цена</th>
-                            <th>Стоимость</th>
-                            <th>Доля</th>
-                            <th>24ч</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <div class="asset-name">
-                                    <span>₿</span>
-                                    <span class="asset-symbol">Bitcoin</span>
-                                </div>
-                            </td>
-                            <td class="asset-balance">0.85 BTC</td>
-                            <td>$43,200</td>
-                            <td>$36,720</td>
-                            <td>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 81%"></div>
-                                </div>
-                            </td>
-                            <td class="asset-profit">+3.2%</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div class="asset-name">
-                                    <span>Ξ</span>
-                                    <span class="asset-symbol">Ethereum</span>
-                                </div>
-                            </td>
-                            <td class="asset-balance">4.2 ETH</td>
-                            <td>$2,250</td>
-                            <td>$9,450</td>
-                            <td>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 21%"></div>
-                                </div>
-                            </td>
-                            <td class="asset-profit">+1.8%</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div class="asset-name">
-                                    <span>◎</span>
-                                    <span class="asset-symbol">Solana</span>
-                                </div>
-                            </td>
-                            <td class="asset-balance">15 SOL</td>
-                            <td>$94</td>
-                            <td>$1,410</td>
-                            <td>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 3%"></div>
-                                </div>
-                            </td>
-                            <td class="asset-profit">+5.7%</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="portfolio-total">
+                    <div class="portfolio-total-label">Общая стоимость</div>
+                    <div class="portfolio-total-value">$45,280.50</div>
+                    <div class="portfolio-change">+12.4% за месяц</div>
+                </div>
             </div>
+
+            <table class="assets-table">
+                <thead>
+                    <tr>
+                        <th>Монета</th>
+                        <th>Количество</th>
+                        <th>Цена входа</th>
+                        <th>Текущая цена</th>
+                        <th>Стоимость</th>
+                        <th>Прибыль</th>
+                        <th>Доля</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>BTC</strong></td>
+                        <td>0.85</td>
+                        <td>$35,000</td>
+                        <td>$43,200</td>
+                        <td>$36,720</td>
+                        <td class="asset-profit">+$8,200 (23.4%)</td>
+                        <td>81%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ETH</strong></td>
+                        <td>4.2</td>
+                        <td>$2,100</td>
+                        <td>$2,250</td>
+                        <td>$9,450</td>
+                        <td class="asset-profit">+$630 (7.1%)</td>
+                        <td>21%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SOL</strong></td>
+                        <td>15</td>
+                        <td>$82</td>
+                        <td>$94</td>
+                        <td>$1,410</td>
+                        <td class="asset-profit">+$180 (14.6%)</td>
+                        <td>3%</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
-    </section>
+    </div>
+</section>
 
     <section id="pricing" class="pricing">
         <div class="container">
