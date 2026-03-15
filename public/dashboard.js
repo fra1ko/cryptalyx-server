@@ -1,567 +1,13 @@
-// Добавляем стили для дашборда
-const styles = `
-    .dashboard-container {
-        max-width: 1400px;
-        margin: 2rem auto;
-        padding: 0 2rem;
-    }
-
-    .stat-card {
-        background: #1e293b;
-        border-radius: 1.5rem;
-        padding: 1.5rem;
-        border: 1px solid #334155;
-        position: relative;
-    }
-
-    .stat-label {
-        color: #94a3b8;
-        font-size: 0.85rem;
-        margin-bottom: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 600;
-    }
-
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #f1f5f9;
-    }
-
-    .positive {
-        color: #4ade80;
-    }
-
-    /* Улучшенная таблица с прокруткой */
-.portfolio-table {
-    background: #1e293b;
-    border-radius: 1.5rem;
-    padding: 2rem;
-    border: 1px solid #334155;
-    margin-bottom: 2rem;
-    position: relative;
-}
-
-.table-wrapper {
-    position: relative;
-    overflow-x: auto;
-    border-radius: 1rem;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-}
-
-.table-wrapper::-webkit-scrollbar {
-    height: 8px;
-    background: #0f172a;
-    border-radius: 4px;
-}
-
-.table-wrapper::-webkit-scrollbar-thumb {
-    background: #3b82f6;
-    border-radius: 4px;
-}
-
-.table-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #2563eb;
-}
-
-.scroll-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.scroll-btn {
-    background: #334155;
-    border: 1px solid #475569;
-    color: #e2e8f0;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    transition: all 0.2s;
-}
-
-.scroll-btn:hover {
-    background: #3b82f6;
-    transform: scale(1.1);
-}
-
-.scroll-btn:active {
-    transform: scale(0.95);
-}
-
-/* Скрываем кнопки на десктопе */
-@media (min-width: 1024px) {
-    .scroll-buttons {
-        display: none;
-    }
-}
-
-/* Адаптация для мобильных */
-@media (max-width: 768px) {
-    .portfolio-table {
-        padding: 1rem;
-    }
-
-    table {
-        min-width: 1000px;
-        font-size: 0.9rem;
-    }
-
-    th, td {
-        padding: 0.75rem;
-        white-space: nowrap;
-    }
-
-    /* Индикатор прокрутки */
-    .table-wrapper::after {
-        content: '👉';
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: #3b82f6;
-        color: white;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        opacity: 0.7;
-        pointer-events: none;
-        animation: bounce 2s infinite;
-    }
-
-    @keyframes bounce {
-        0%, 100% { transform: translateY(-50%) translateX(0); }
-        50% { transform: translateY(-50%) translateX(5px); }
-    }
-}
-
-/* Убираем индикатор после прокрутки */
-.table-wrapper.scrolled::after {
-    display: none;
-}
-
-    .negative {
-        color: #f87171;
-    }
-
-    .free-usdt-card {
-        grid-column: span 4;
-        margin-bottom: 2rem;
-    }
-
-    .free-usdt-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .free-usdt-info {
-        display: flex;
-        align-items: baseline;
-        gap: 2rem;
-    }
-
-    .free-usdt-controls {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-
-    .free-usdt-input {
-        background: #0f172a;
-        border: 2px solid #334155;
-        color: #f1f5f9;
-        padding: 0.75rem 1rem;
-        border-radius: 1rem;
-        font-size: 1rem;
-        width: 150px;
-    }
-
-    .free-usdt-input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        background: #1e293b;
-    }
-
-    .action-btn {
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 1rem;
-        padding: 0.75rem 1.5rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 0.9rem;
-    }
-
-    .action-btn:hover {
-        background: #2563eb;
-        transform: translateY(-2px);
-    }
-
-    .refresh-btn {
-        background: #334155;
-        color: #e2e8f0;
-        border: 1px solid #475569;
-        border-radius: 1rem;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .refresh-btn:hover {
-        background: #475569;
-    }
-
-    .add-section {
-        background: #1e293b;
-        border-radius: 1.5rem;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        border: 1px solid #334155;
-    }
-
-    .add-form {
-        display: flex;
-        gap: 1rem;
-        align-items: flex-end;
-        margin-top: 1.5rem;
-    }
-
-    .form-group {
-        flex: 1;
-    }
-
-    .form-group label {
-        display: block;
-        font-size: 0.85rem;
-        color: #94a3b8;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-    }
-
-    .form-group input {
-        width: 100%;
-        padding: 0.875rem 1rem;
-        border: 2px solid #334155;
-        border-radius: 1rem;
-        font-size: 1rem;
-        transition: all 0.2s;
-        background: #0f172a;
-        color: #f1f5f9;
-    }
-
-    .form-group input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        background: #1e293b;
-    }
-
-    .add-btn {
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 1rem;
-        padding: 0.875rem 2rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 1rem;
-        height: 3.5rem;
-        white-space: nowrap;
-    }
-
-    .add-btn:hover {
-        background: #2563eb;
-        transform: translateY(-2px);
-    }
-
-    .portfolio-table {
-        background: #1e293b;
-        border-radius: 1.5rem;
-        padding: 2rem;
-        border: 1px solid #334155;
-        overflow-x: auto;
-        margin-bottom: 2rem;
-    }
-
-    .portfolio-table h2 {
-        color: #f1f5f9;
-        margin-bottom: 1.5rem;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th {
-        text-align: left;
-        padding: 1rem;
-        background: #0f172a;
-        color: #94a3b8;
-        font-weight: 600;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        border-bottom: 2px solid #334155;
-    }
-
-    td {
-        padding: 1rem;
-        border-bottom: 1px solid #334155;
-        color: #e2e8f0;
-    }
-
-    .delete-btn {
-        background: none;
-        border: none;
-        color: #94a3b8;
-        cursor: pointer;
-        font-size: 1.2rem;
-        padding: 0.5rem;
-        border-radius: 0.5rem;
-        transition: all 0.2s;
-    }
-
-    .delete-btn:hover {
-        color: #f87171;
-        background: #334155;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem;
-        color: #64748b;
-        font-size: 1.1rem;
-    }
-
-    .ai-section {
-        background: #1e293b;
-        border-radius: 1.5rem;
-        padding: 2rem;
-        border: 1px solid #334155;
-    }
-
-    .ai-section h2 {
-        color: #f1f5f9;
-        margin-bottom: 1.5rem;
-    }
-
-    .ai-card {
-        background: #0f172a;
-        padding: 1.5rem;
-        border-radius: 1rem;
-        margin-bottom: 1rem;
-        border-left: 4px solid #3b82f6;
-    }
-
-    .ai-card p {
-        margin-bottom: 0.5rem;
-        color: #e2e8f0;
-        line-height: 1.5;
-    }
-
-    .ai-card small {
-        color: #64748b;
-        font-size: 0.85rem;
-    }
-
-    .user-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-left: 2rem;
-    }
-
-    .plan-badge {
-        background: #3b82f6;
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 2rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .logout-btn {
-        background: none;
-        border: 1px solid #475569;
-        padding: 0.5rem 1.25rem;
-        border-radius: 2rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        color: #94a3b8;
-        font-size: 0.9rem;
-    }
-
-    .logout-btn:hover {
-        background: #334155;
-        color: #f1f5f9;
-    }
-
-    /* Мобильная адаптация */
-    @media (max-width: 1024px) {
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 0.75rem;
-        }
-
-        .free-usdt-card {
-            grid-column: span 2 !important;
-        }
-
-        .free-usdt-container {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .free-usdt-controls {
-            width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-        }
-
-        .free-usdt-input {
-            width: 100%;
-        }
-
-        .add-form {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .add-btn {
-            width: 100%;
-        }
-    }
-
-    // В разделе стилей замени медиа-запрос для таблицы:
-
-@media (max-width: 768px) {
-    .portfolio-table {
-        padding: 1rem;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        border-radius: 1rem;
-    }
-
-    table {
-        min-width: 1000px; /* Увеличил ширину для всех колонок */
-        font-size: 0.85rem;
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    th, td {
-        padding: 0.75rem 0.5rem;
-        white-space: nowrap;
-        min-width: 100px;
-    }
-
-    th:first-child, td:first-child {
-        min-width: 80px;
-    }
-
-    th:last-child, td:last-child {
-        min-width: 60px;
-    }
-
-    /* Добавил тень для индикации скролла */
-    .portfolio-table::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 40px;
-        background: linear-gradient(to right, transparent, #1e293b);
-        pointer-events: none;
-        opacity: 0.5;
-        border-radius: 0 1rem 1rem 0;
-    }
-        .nav-links.active {
-            display: flex;
-        }
-
-        .nav-links a {
-            padding: 1rem;
-            width: 100%;
-            text-align: center;
-            border-bottom: 1px solid #334155;
-        }
-
-        .mobile-menu-btn {
-            display: block;
-        }
-
-        .stats-grid {
-            grid-template-columns: 1fr !important;
-        }
-
-        .free-usdt-card {
-            grid-column: span 1 !important;
-        }
-
-        .free-usdt-controls {
-            grid-template-columns: 1fr;
-        }
-
-        .portfolio-table {
-            padding: 1rem 0.5rem;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        table {
-            min-width: 900px;
-            font-size: 0.85rem;
-        }
-
-        th, td {
-            padding: 0.75rem 0.5rem;
-            white-space: nowrap;
-        }
-
-        .add-section {
-            padding: 1rem;
-        }
-    }
-`;
-
-// Добавляем стили
-const styleSheet = document.createElement("style");
-styleSheet.textContent = styles;
-document.head.appendChild(styleSheet);
-
 // ===== Класс портфеля =====
 class Portfolio {
     constructor() {
         this.assets = [];
         this.prices = {};
         this.freeUSDT = parseFloat(localStorage.getItem('freeUSDT')) || 0;
+        this.activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
         this.load();
         this.startPriceUpdate();
+        this.initCharts();
     }
 
     load() {
@@ -579,7 +25,17 @@ class Portfolio {
     save() {
         localStorage.setItem('portfolio', JSON.stringify(this.assets));
         localStorage.setItem('freeUSDT', this.freeUSDT);
+        localStorage.setItem('activityLog', JSON.stringify(this.activityLog));
         this.render();
+    }
+
+    addActivity(action, details) {
+        this.activityLog.unshift({
+            action,
+            details,
+            time: new Date().toLocaleTimeString()
+        });
+        if (this.activityLog.length > 10) this.activityLog.pop();
     }
 
     addAsset(coin, amount, price) {
@@ -597,6 +53,7 @@ class Portfolio {
             const totalValue = (existing.amount * existing.price) + (amount * price);
             existing.amount = totalAmount;
             existing.price = totalValue / totalAmount;
+            this.addActivity('➕ Добавлено', `${amount} ${coin} по $${price}`);
         } else {
             this.assets.push({
                 coin,
@@ -604,18 +61,25 @@ class Portfolio {
                 price,
                 id: Date.now()
             });
+            this.addActivity('➕ Новый актив', `${coin} ${amount} шт. по $${price}`);
         }
         
         this.save();
     }
 
     removeAsset(id) {
+        const asset = this.assets.find(a => a.id === id);
+        if (asset) {
+            this.addActivity('🗑️ Удалено', `${asset.coin} ${asset.amount} шт.`);
+        }
         this.assets = this.assets.filter(a => a.id !== id);
         this.save();
     }
 
     setFreeUSDT(value) {
+        const oldValue = this.freeUSDT;
         this.freeUSDT = value;
+        this.addActivity('💵 USDT обновлено', `${oldValue} → ${value} USDT`);
         this.save();
     }
 
@@ -659,9 +123,193 @@ class Portfolio {
         };
     }
 
-    render() {
+    getBestAndWorstAssets() {
+        if (this.assets.length === 0) return { best: null, worst: null, bestProfit: 0, worstProfit: 0 };
+        
+        let bestAsset = null;
+        let worstAsset = null;
+        let bestProfit = -Infinity;
+        let worstProfit = Infinity;
+        
+        this.assets.forEach(asset => {
+            const currentPrice = this.prices[asset.coin] || 0;
+            const profit = ((currentPrice - asset.price) / asset.price * 100);
+            
+            if (profit > bestProfit) {
+                bestProfit = profit;
+                bestAsset = asset;
+            }
+            if (profit < worstProfit) {
+                worstProfit = profit;
+                worstAsset = asset;
+            }
+        });
+        
+        return { bestAsset, bestProfit, worstAsset, worstProfit };
+    }
+
+    getDiversificationScore() {
+        if (this.assets.length === 0) return 0;
+        
+        let totalValue = 0;
+        this.assets.forEach(asset => {
+            totalValue += asset.amount * (this.prices[asset.coin] || 0);
+        });
+        
+        if (totalValue === 0) return 0;
+        
+        let sumSquares = 0;
+        this.assets.forEach(asset => {
+            const share = (asset.amount * (this.prices[asset.coin] || 0)) / totalValue;
+            sumSquares += share * share;
+        });
+        
+        const diversification = 1 - sumSquares;
+        return Math.min(100, Math.max(0, diversification * 100));
+    }
+
+    getRiskScore() {
+        if (this.assets.length === 0) return 0;
+        
+        let score = 5;
+        
+        score -= (this.assets.length - 1) * 0.5;
+        
+        const diversification = this.getDiversificationScore();
+        if (diversification < 30) score += 2;
+        if (diversification > 70) score -= 1;
+        
+        this.assets.forEach(asset => {
+            const currentPrice = this.prices[asset.coin] || 0;
+            if (currentPrice > asset.price) score -= 0.3;
+            if (currentPrice < asset.price * 0.7) score += 0.5;
+        });
+        
+        return Math.min(10, Math.max(1, Math.round(score)));
+    }
+
+    getRiskLevel(score) {
+        if (score <= 3) return 'Низкий';
+        if (score <= 6) return 'Средний';
+        return 'Высокий';
+    }
+
+    getDiversificationLevel(score) {
+        if (score <= 30) return 'Низкая';
+        if (score <= 60) return 'Средняя';
+        return 'Высокая';
+    }
+
+    initCharts() {
+        // Инициализация графиков после загрузки страницы
+        setTimeout(() => {
+            this.updateCharts();
+        }, 500);
+    }
+
+    updateCharts() {
         const stats = this.getStats();
         
+        // График истории портфеля
+        const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
+        if (portfolioCtx) {
+            const dates = [];
+            const values = [];
+            
+            for (let i = 30; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                
+                const randomFactor = 0.95 + Math.random() * 0.1;
+                values.push(stats.totalPortfolioValue * randomFactor);
+            }
+            
+            new Chart(portfolioCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Стоимость портфеля (USDT)',
+                        data: values,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // График распределения по категориям
+        const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
+        if (categoryCtx && this.assets.length > 0) {
+            const categories = {
+                'L1': ['BTC', 'ETH', 'SOL', 'BNB'],
+                'L2': ['MATIC', 'ARB', 'OP'],
+                'DeFi': ['UNI', 'AAVE', 'LINK'],
+                'Meme': ['DOGE', 'SHIB', 'PEPE']
+            };
+            
+            const categoryData = {};
+            let totalValue = 0;
+            
+            this.assets.forEach(asset => {
+                const value = asset.amount * (this.prices[asset.coin] || 0);
+                totalValue += value;
+                
+                let category = 'Other';
+                for (const [cat, coins] of Object.entries(categories)) {
+                    if (coins.includes(asset.coin)) {
+                        category = cat;
+                        break;
+                    }
+                }
+                
+                categoryData[category] = (categoryData[category] || 0) + value;
+            });
+            
+            new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryData),
+                    datasets: [{
+                        data: Object.values(categoryData),
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    }
+
+    render() {
+        const stats = this.getStats();
+        const bestWorst = this.getBestAndWorstAssets();
+        const diversificationScore = this.getDiversificationScore();
+        const riskScore = this.getRiskScore();
+        
+        // Основные метрики
         document.getElementById('totalPortfolioValue').textContent = `$${stats.totalPortfolioValue.toFixed(2)}`;
         document.getElementById('totalBuyValue').textContent = `$${stats.totalBuyValue.toFixed(2)}`;
         document.getElementById('totalCurrentValue').textContent = `$${stats.totalCurrentValue.toFixed(2)}`;
@@ -671,6 +319,44 @@ class Portfolio {
         profitEl.textContent = `$${stats.profit.toFixed(2)} (${stats.profitPercent.toFixed(2)}%)`;
         profitEl.className = stats.profit >= 0 ? 'positive' : 'negative';
         
+        // Лучший/худший актив
+        if (bestWorst.bestAsset) {
+            document.getElementById('bestAsset').textContent = bestWorst.bestAsset.coin;
+            document.getElementById('bestAssetProfit').textContent = `+${bestWorst.bestProfit.toFixed(1)}%`;
+        }
+        if (bestWorst.worstAsset) {
+            document.getElementById('worstAsset').textContent = bestWorst.worstAsset.coin;
+            document.getElementById('worstAssetProfit').textContent = `${bestWorst.worstProfit.toFixed(1)}%`;
+        }
+        
+        // Диверсификация
+        document.getElementById('diversificationScore').textContent = `${diversificationScore.toFixed(0)}%`;
+        document.getElementById('diversificationLevel').textContent = this.getDiversificationLevel(diversificationScore);
+        
+        // Риск
+        document.getElementById('riskScore').textContent = `${riskScore}/10`;
+        document.getElementById('riskLevel').textContent = this.getRiskLevel(riskScore);
+        
+        // Сравнение с рынком
+        const btcPrice = this.prices['BTC'] || 0;
+        const ethPrice = this.prices['ETH'] || 0;
+        document.getElementById('portfolioVsMarket').textContent = `${stats.profitPercent.toFixed(1)}%`;
+        document.getElementById('portfolioVsMarket').className = stats.profitPercent >= 0 ? 'positive' : 'negative';
+        document.getElementById('btcChange').textContent = btcPrice ? `${((btcPrice - 35000) / 35000 * 100).toFixed(1)}%` : '0%';
+        document.getElementById('ethChange').textContent = ethPrice ? `${((ethPrice - 2000) / 2000 * 100).toFixed(1)}%` : '0%';
+        
+        // Цели
+        const btcAmount = this.assets.find(a => a.coin === 'BTC')?.amount || 0;
+        document.getElementById('btcGoal').textContent = `${btcAmount.toFixed(4)} / 1 BTC`;
+        document.getElementById('btcProgress').style.width = `${Math.min(100, btcAmount * 100)}%`;
+        
+        document.getElementById('profitGoal').textContent = `${stats.profitPercent.toFixed(1)}% / 50%`;
+        document.getElementById('profitProgress').style.width = `${Math.min(100, stats.profitPercent * 2)}%`;
+        
+        document.getElementById('diversityGoal').textContent = `${this.assets.length} / 3`;
+        document.getElementById('diversityProgress').style.width = `${Math.min(100, (this.assets.length / 3) * 100)}%`;
+        
+        // Таблица портфеля
         const tbody = document.getElementById('portfolioBody');
         if (!tbody) return;
         
@@ -708,8 +394,54 @@ class Portfolio {
         });
 
         tbody.innerHTML = rows;
+        
+        // Последние действия
+        const activityList = document.getElementById('activityList');
+        if (activityList && this.activityLog.length > 0) {
+            activityList.innerHTML = this.activityLog.map(a => `
+                <div class="activity-item">
+                    <span>${a.action} ${a.details}</span>
+                    <span class="activity-time">${a.time}</span>
+                </div>
+            `).join('');
+        }
+        
+        // Уведомления
+        const alertsList = document.getElementById('alertsList');
+        if (alertsList) {
+            const alerts = [];
+            
+            if (this.assets.length === 0) {
+                alerts.push({ type: 'info', text: 'Добавьте первый актив' });
+            }
+            
+            if (bestWorst.bestProfit > 50) {
+                alerts.push({ type: 'success', text: `${bestWorst.bestAsset?.coin} вырос на ${bestWorst.bestProfit.toFixed(1)}%!` });
+            }
+            
+            if (bestWorst.worstProfit < -30) {
+                alerts.push({ type: 'danger', text: `${bestWorst.worstAsset?.coin} упал на ${Math.abs(bestWorst.worstProfit).toFixed(1)}%` });
+            }
+            
+            if (diversificationScore < 30) {
+                alerts.push({ type: 'warning', text: 'Низкая диверсификация. Добавьте другие монеты' });
+            }
+            
+            if (alerts.length === 0) {
+                alerts.push({ type: 'info', text: 'Все хорошо. Продолжайте в том же духе' });
+            }
+            
+            alertsList.innerHTML = alerts.map(a => `
+                <div class="alert-item ${a.type}">
+                    <span class="alert-icon">${a.type === 'success' ? '✅' : a.type === 'warning' ? '⚠️' : a.type === 'danger' ? '🔴' : 'ℹ️'}</span>
+                    <span class="alert-text">${a.text}</span>
+                </div>
+            `).join('');
+        }
+        
         this.renderAI();
         document.getElementById('aiSection').style.display = 'block';
+        this.updateCharts();
     }
 
     renderAI() {
@@ -717,6 +449,7 @@ class Portfolio {
         if (!aiDiv) return;
         
         const stats = this.getStats();
+        const bestWorst = this.getBestAndWorstAssets();
         const recommendations = [];
         
         let maxShare = 0;
@@ -744,6 +477,10 @@ class Portfolio {
                 recommendations.push(`💰 **Прибыль**: ${asset.coin} вырос на ${profit.toFixed(1)}%`);
             }
         });
+        
+        if (this.assets.length < 3) {
+            recommendations.push(`📊 **Мало активов**: Добавьте еще ${3 - this.assets.length} монеты для диверсификации`);
+        }
         
         if (recommendations.length === 0) {
             recommendations.push(`✅ **Сбалансированный портфель**`);
@@ -819,7 +556,6 @@ function toggleMobileMenu() {
     navLinks.classList.toggle('active');
 }
 
-// Прокрутка таблицы
 function scrollTable(direction) {
     const wrapper = document.getElementById('tableWrapper');
     const scrollAmount = 300;
@@ -830,17 +566,8 @@ function scrollTable(direction) {
         wrapper.scrollLeft += scrollAmount;
     }
     
-    // Добавляем класс для скрытия индикатора
     wrapper.classList.add('scrolled');
 }
-
-// Скрываем индикатор после ручной прокрутки
-document.getElementById('tableWrapper')?.addEventListener('scroll', function() {
-    this.classList.add('scrolled');
-});
-
-// Добавляем в window
-window.scrollTable = scrollTable;
 
 // Закрываем меню при клике вне
 document.addEventListener('click', function(event) {
@@ -867,4 +594,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.logout = logout;
     window.refreshPrices = refreshPrices;
     window.toggleMobileMenu = toggleMobileMenu;
+    window.scrollTable = scrollTable;
+});
+
+// Скрываем индикатор после прокрутки
+document.getElementById('tableWrapper')?.addEventListener('scroll', function() {
+    this.classList.add('scrolled');
 });

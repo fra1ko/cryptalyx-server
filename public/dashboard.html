@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Мой портфель — Cryptalyx</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -24,6 +25,7 @@
     </nav>
 
     <div class="dashboard-container">
+        <!-- Статистика -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">СТОИМОСТЬ ПОРТФЕЛЯ</div>
@@ -41,8 +43,29 @@
                 <div class="stat-label">ДОХОДНОСТЬ</div>
                 <div class="stat-value" id="profit">$0.00 (0%)</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-label">ЛУЧШИЙ АКТИВ</div>
+                <div class="stat-value" id="bestAsset">—</div>
+                <div style="color: #4ade80; font-size: 0.9rem;" id="bestAssetProfit"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">ХУДШИЙ АКТИВ</div>
+                <div class="stat-value" id="worstAsset">—</div>
+                <div style="color: #f87171; font-size: 0.9rem;" id="worstAssetProfit"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">ДИВЕРСИФИКАЦИЯ</div>
+                <div class="stat-value" id="diversificationScore">0%</div>
+                <div style="color: #94a3b8; font-size: 0.9rem;" id="diversificationLevel">Низкая</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">РИСК-СКОР</div>
+                <div class="stat-value" id="riskScore">0/10</div>
+                <div style="color: #94a3b8; font-size: 0.9rem;" id="riskLevel">Низкий</div>
+            </div>
         </div>
 
+        <!-- Свободные USDT -->
         <div class="stat-card free-usdt-card">
             <div class="free-usdt-container">
                 <div class="free-usdt-info">
@@ -59,6 +82,24 @@
             </div>
         </div>
 
+        <!-- Графики -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>📊 Распределение по категориям</h3>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="category-legend" id="categoryLegend"></div>
+            </div>
+            <div class="chart-card">
+                <h3>📈 История портфеля (30 дней)</h3>
+                <div class="chart-container">
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Добавление актива -->
         <div class="add-section">
             <h2>➕ Добавить актив</h2>
             <div class="add-form">
@@ -78,38 +119,119 @@
             </div>
         </div>
 
+        <!-- Таблица портфеля -->
         <div class="portfolio-table">
-    <h2>📊 Мои активы</h2>
-    <div class="table-wrapper" id="tableWrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>Монета</th>
-                    <th>Количество</th>
-                    <th>Цена входа</th>
-                    <th>Текущая цена</th>
-                    <th>Стоимость входа</th>
-                    <th>Текущая стоимость</th>
-                    <th>Прибыль</th>
-                    <th>Доля</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="portfolioBody">
-                <tr>
-                    <td colspan="9" class="empty-state">
-                        📭 Портфель пуст. Добавьте первую монету!
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="scroll-buttons">
-        <button class="scroll-btn" onclick="scrollTable('left')">←</button>
-        <button class="scroll-btn" onclick="scrollTable('right')">→</button>
-    </div>
-</div>
+            <h2>📊 Мои активы</h2>
+            <div class="table-wrapper" id="tableWrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Монета</th>
+                            <th>Количество</th>
+                            <th>Цена входа</th>
+                            <th>Текущая цена</th>
+                            <th>Стоимость входа</th>
+                            <th>Текущая стоимость</th>
+                            <th>Прибыль</th>
+                            <th>Доля</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="portfolioBody">
+                        <tr>
+                            <td colspan="9" class="empty-state">
+                                📭 Портфель пуст. Добавьте первую монету!
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="scroll-buttons">
+                <button class="scroll-btn" onclick="scrollTable('left')">←</button>
+                <button class="scroll-btn" onclick="scrollTable('right')">→</button>
+            </div>
+        </div>
 
+        <!-- Сравнение с рынком и цели -->
+        <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="comparison-section">
+                <h3>📉 Сравнение с рынком</h3>
+                <div class="comparison-grid" id="comparisonGrid">
+                    <div class="comparison-item">
+                        <span>Ваш портфель</span>
+                        <span class="positive" id="portfolioVsMarket">0%</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span>BTC</span>
+                        <span class="positive" id="btcChange">0%</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span>ETH</span>
+                        <span class="positive" id="ethChange">0%</span>
+                    </div>
+                    <div class="comparison-item">
+                        <span>Total 3</span>
+                        <span class="positive" id="total3Change">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="goals-section">
+                <h3>🎯 Цели портфеля</h3>
+                <div class="goal-item">
+                    <div class="goal-info">
+                        <span>Накопить 1 BTC</span>
+                        <span id="btcGoal">0 / 1 BTC</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="btcProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="goal-item">
+                    <div class="goal-info">
+                        <span>Доходность 50% годовых</span>
+                        <span id="profitGoal">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="profitProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="goal-item">
+                    <div class="goal-info">
+                        <span>Диверсификация (мин. 3 монеты)</span>
+                        <span id="diversityGoal">0/3</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="diversityProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Последние действия и уведомления -->
+        <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="recent-activity">
+                <h3>🕒 Последние действия</h3>
+                <div class="activity-list" id="activityList">
+                    <div class="activity-item">
+                        <span>Пока нет действий</span>
+                        <span class="activity-time"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alerts-section">
+                <h3>🔔 Уведомления</h3>
+                <div class="alerts-list" id="alertsList">
+                    <div class="alert-item info">
+                        <span class="alert-icon">ℹ️</span>
+                        <span class="alert-text">Добавьте первый актив</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ИИ рекомендации -->
         <div class="ai-section" id="aiSection" style="display: none;">
             <h2>🤖 Рекомендации ИИ</h2>
             <div id="aiRecommendations"></div>
