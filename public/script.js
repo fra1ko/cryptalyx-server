@@ -44,6 +44,20 @@ function updateAuthButton() {
     }
 }
 
+// Скролл тарифов
+function scrollPricing(direction) {
+    const grid = document.querySelector('.pricing-grid');
+    const scrollAmount = 300;
+    
+    if (direction === 'left') {
+        grid.scrollLeft -= scrollAmount;
+    } else {
+        grid.scrollLeft += scrollAmount;
+    }
+}
+
+window.scrollPricing = scrollPricing;
+
 document.addEventListener('DOMContentLoaded', updateAuthButton);
 window.addEventListener('storage', updateAuthButton);
 

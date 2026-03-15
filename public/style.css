@@ -459,6 +459,90 @@ body {
         font-size: 2rem;
     }
 }
+/* Тарифы с горизонтальным скроллом на мобильных */
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin-top: 3rem;
+}
+
+@media (max-width: 768px) {
+    .pricing-grid {
+        display: flex;
+        overflow-x: auto;
+        gap: 1rem;
+        padding: 1rem 0.5rem 2rem;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .pricing-card {
+        min-width: 280px;
+        scroll-snap-align: start;
+        margin-right: 0;
+        flex-shrink: 0;
+    }
+
+    .pricing-card:last-child {
+        margin-right: 1rem;
+    }
+
+    /* Индикатор скролла */
+    .pricing-grid::-webkit-scrollbar {
+        height: 6px;
+        background: #1e293b;
+        border-radius: 3px;
+    }
+
+    .pricing-grid::-webkit-scrollbar-thumb {
+        background: #3b82f6;
+        border-radius: 3px;
+    }
+
+    /* Стрелки для скролла */
+    .pricing-wrapper {
+        position: relative;
+    }
+
+    .scroll-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 40px;
+        height: 40px;
+        background: #1e293b;
+        border: 1px solid #3b82f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #3b82f6;
+        font-size: 1.5rem;
+        cursor: pointer;
+        z-index: 10;
+        transition: all 0.2s;
+    }
+
+    .scroll-arrow:hover {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .scroll-arrow.left {
+        left: 0;
+    }
+
+    .scroll-arrow.right {
+        right: 0;
+    }
+
+    @media (max-width: 480px) {
+        .scroll-arrow {
+            display: none; /* На маленьких экранах полагаемся на нативный скролл */
+        }
+    }
+}
 
 /* ИИ рекомендации */
 .ai-recommendations {
