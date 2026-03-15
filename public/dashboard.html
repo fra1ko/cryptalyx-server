@@ -79,30 +79,36 @@
         </div>
 
         <div class="portfolio-table">
-            <h2>📊 Мои активы</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Монета</th>
-                        <th>Количество</th>
-                        <th>Цена входа</th>
-                        <th>Текущая цена</th>
-                        <th>Стоимость входа</th>
-                        <th>Текущая стоимость</th>
-                        <th>Прибыль</th>
-                        <th>Доля</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="portfolioBody">
-                    <tr>
-                        <td colspan="9" class="empty-state">
-                            📭 Портфель пуст. Добавьте первую монету!
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+    <h2>📊 Мои активы</h2>
+    <div class="table-wrapper" id="tableWrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Монета</th>
+                    <th>Количество</th>
+                    <th>Цена входа</th>
+                    <th>Текущая цена</th>
+                    <th>Стоимость входа</th>
+                    <th>Текущая стоимость</th>
+                    <th>Прибыль</th>
+                    <th>Доля</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="portfolioBody">
+                <tr>
+                    <td colspan="9" class="empty-state">
+                        📭 Портфель пуст. Добавьте первую монету!
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="scroll-buttons">
+        <button class="scroll-btn" onclick="scrollTable('left')">←</button>
+        <button class="scroll-btn" onclick="scrollTable('right')">→</button>
+    </div>
+</div>
 
         <div class="ai-section" id="aiSection" style="display: none;">
             <h2>🤖 Рекомендации ИИ</h2>

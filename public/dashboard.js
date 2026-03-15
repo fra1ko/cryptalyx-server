@@ -33,6 +33,125 @@ const styles = `
         color: #4ade80;
     }
 
+    /* Улучшенная таблица с прокруткой */
+.portfolio-table {
+    background: #1e293b;
+    border-radius: 1.5rem;
+    padding: 2rem;
+    border: 1px solid #334155;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.table-wrapper {
+    position: relative;
+    overflow-x: auto;
+    border-radius: 1rem;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+.table-wrapper::-webkit-scrollbar {
+    height: 8px;
+    background: #0f172a;
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
+}
+
+.scroll-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.scroll-btn {
+    background: #334155;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+}
+
+.scroll-btn:hover {
+    background: #3b82f6;
+    transform: scale(1.1);
+}
+
+.scroll-btn:active {
+    transform: scale(0.95);
+}
+
+/* Скрываем кнопки на десктопе */
+@media (min-width: 1024px) {
+    .scroll-buttons {
+        display: none;
+    }
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .portfolio-table {
+        padding: 1rem;
+    }
+
+    table {
+        min-width: 1000px;
+        font-size: 0.9rem;
+    }
+
+    th, td {
+        padding: 0.75rem;
+        white-space: nowrap;
+    }
+
+    /* Индикатор прокрутки */
+    .table-wrapper::after {
+        content: '👉';
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #3b82f6;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        opacity: 0.7;
+        pointer-events: none;
+        animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+        0%, 100% { transform: translateY(-50%) translateX(0); }
+        50% { transform: translateY(-50%) translateX(5px); }
+    }
+}
+
+/* Убираем индикатор после прокрутки */
+.table-wrapper.scrolled::after {
+    display: none;
+}
+
     .negative {
         color: #f87171;
     }
@@ -699,6 +818,29 @@ function toggleMobileMenu() {
     const navLinks = document.querySelector('.nav-links');
     navLinks.classList.toggle('active');
 }
+
+// Прокрутка таблицы
+function scrollTable(direction) {
+    const wrapper = document.getElementById('tableWrapper');
+    const scrollAmount = 300;
+    
+    if (direction === 'left') {
+        wrapper.scrollLeft -= scrollAmount;
+    } else {
+        wrapper.scrollLeft += scrollAmount;
+    }
+    
+    // Добавляем класс для скрытия индикатора
+    wrapper.classList.add('scrolled');
+}
+
+// Скрываем индикатор после ручной прокрутки
+document.getElementById('tableWrapper')?.addEventListener('scroll', function() {
+    this.classList.add('scrolled');
+});
+
+// Добавляем в window
+window.scrollTable = scrollTable;
 
 // Закрываем меню при клике вне
 document.addEventListener('click', function(event) {
