@@ -337,20 +337,50 @@ const styles = `
         }
     }
 
-    @media (max-width: 768px) {
-        .nav-links {
-            display: none;
-            position: fixed;
-            top: 60px;
-            left: 0;
-            right: 0;
-            background: #1e293b;
-            flex-direction: column;
-            padding: 1rem;
-            border-bottom: 1px solid #334155;
-            z-index: 1000;
-        }
+    // В разделе стилей замени медиа-запрос для таблицы:
 
+@media (max-width: 768px) {
+    .portfolio-table {
+        padding: 1rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 1rem;
+    }
+
+    table {
+        min-width: 1000px; /* Увеличил ширину для всех колонок */
+        font-size: 0.85rem;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    th, td {
+        padding: 0.75rem 0.5rem;
+        white-space: nowrap;
+        min-width: 100px;
+    }
+
+    th:first-child, td:first-child {
+        min-width: 80px;
+    }
+
+    th:last-child, td:last-child {
+        min-width: 60px;
+    }
+
+    /* Добавил тень для индикации скролла */
+    .portfolio-table::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 40px;
+        background: linear-gradient(to right, transparent, #1e293b);
+        pointer-events: none;
+        opacity: 0.5;
+        border-radius: 0 1rem 1rem 0;
+    }
         .nav-links.active {
             display: flex;
         }
