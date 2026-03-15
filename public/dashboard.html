@@ -2,227 +2,18 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Мой портфель — Cryptalyx</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-
-        .welcome-card {
-            background: linear-gradient(135deg, #2563eb, #7c3aed);
-            color: white;
-            padding: 2rem;
-            border-radius: 1.5rem;
-            margin-bottom: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .key-info {
-            background: rgba(255,255,255,0.2);
-            padding: 1rem 1.5rem;
-            border-radius: 1rem;
-            font-family: monospace;
-            font-size: 1.1rem;
-        }
-
-        .add-section {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-        }
-
-        .add-form {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr auto;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .refresh-btn {
-    background: #334155;
-    border: 1px solid #475569;
-    color: #e2e8f0;
-    padding: 0.5rem 1rem;
-    border-radius: 2rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-
-.refresh-btn:hover {
-    background: #475569;
-}
-
-.refresh-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.free-usdt-input {
-    background: #0f172a;
-    border: 2px solid #334155;
-    color: #f1f5f9;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-}
-
-.free-usdt-input:focus {
-    outline: none;
-    border-color: #3b82f6;
-}
-
-        .add-form input,
-        .add-form select {
-            padding: 0.75rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 0.75rem;
-            font-size: 1rem;
-        }
-
-        .add-form input:focus,
-        .add-form select:focus {
-            outline: none;
-            border-color: #2563eb;
-        }
-
-        .add-btn {
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 0.75rem;
-            padding: 0 2rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .add-btn:hover {
-            background: #1d4ed8;
-        }
-
-        .portfolio-table {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            text-align: left;
-            padding: 1rem;
-            background: #f8fafc;
-            color: #4b5563;
-            font-weight: 600;
-            border-radius: 0.5rem;
-        }
-
-        td {
-            padding: 1rem;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .asset-profit {
-            color: #10b981;
-            font-weight: 500;
-        }
-
-        .asset-loss {
-            color: #ef4444;
-            font-weight: 500;
-        }
-
-        .delete-btn {
-            background: none;
-            border: none;
-            color: #ef4444;
-            cursor: pointer;
-            font-size: 1.2rem;
-            opacity: 0.7;
-        }
-
-        .delete-btn:hover {
-            opacity: 1;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: #9ca3af;
-        }
-
-        .progress-bar {
-            width: 100px;
-            height: 6px;
-            background: #e5e7eb;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #2563eb, #7c3aed);
-            border-radius: 3px;
-        }
-
-        .ai-section {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            border-radius: 1.5rem;
-            padding: 2rem;
-            margin-top: 2rem;
-        }
-
-        .ai-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 1rem;
-            margin-bottom: 1rem;
-            border-left: 4px solid #2563eb;
-        }
-
-        .plan-badge {
-            background: #2563eb;
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 2rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        @media (max-width: 768px) {
-            .add-form {
-                grid-template-columns: 1fr;
-            }
-            
-            .welcome-card {
-                flex-direction: column;
-                text-align: center;
-                gap: 1rem;
-            }
-        }
-    </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-container">
             <div class="logo">Cryptalyx</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
             <div class="nav-links">
                 <a href="/">Главная</a>
-                <a href="/dashboard" class="active">Портфель</a>
+                <a href="/dashboard.html" class="active">Портфель</a>
                 <a href="#" id="communityLink">Сообщество</a>
                 <div class="user-info">
                     <span class="plan-badge" id="planBadge">BASIC</span>
@@ -233,49 +24,41 @@
     </nav>
 
     <div class="dashboard-container">
-        <!-- Статистика портфеля (4 карточки) -->
-<div class="stats-grid">
-    <!-- Первая строка - 4 карточки -->
-    <div class="stat-card main-card">
-        <div class="stat-label">СТОИМОСТЬ ПОРТФЕЛЯ</div>
-        <div class="stat-value" id="totalPortfolioValue">$0.00</div>
-        <div class="stat-trend" id="portfolioTrend"></div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-label">ОБЩАЯ СТОИМОСТЬ ПОКУПКИ</div>
-        <div class="stat-value" id="totalBuyValue">$0.00</div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-label">ТЕКУЩАЯ СТОИМОСТЬ</div>
-        <div class="stat-value" id="totalCurrentValue">$0.00</div>
-    </div>
-    
-    <div class="stat-card profit-card">
-        <div class="stat-label">ДОХОДНОСТЬ</div>
-        <div class="stat-value" id="profit">$0.00 (0%)</div>
-    </div>
-
-    <!-- Вторая строка - свободные USDT на всю ширину -->
-    <div class="stat-card free-usdt-card">
-        <div class="free-usdt-container">
-            <div class="free-usdt-info">
-                <div class="stat-label">СВОБОДНО USDT</div>
-                <div class="stat-value" id="freeUsdtValue">0 USDT</div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">СТОИМОСТЬ ПОРТФЕЛЯ</div>
+                <div class="stat-value" id="totalPortfolioValue">$0.00</div>
             </div>
-            <div class="free-usdt-controls">
-                <input type="number" id="freeUsdtInput" class="free-usdt-input" placeholder="Сумма" step="0.01" value="0">
-                <button class="action-btn" onclick="updateFreeUSDT()">Применить</button>
-                <button class="refresh-btn" onclick="refreshPrices()">
-                    <span class="refresh-icon">🔄</span> Обновить
-                </button>
+            <div class="stat-card">
+                <div class="stat-label">ОБЩАЯ СТОИМОСТЬ ПОКУПКИ</div>
+                <div class="stat-value" id="totalBuyValue">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">ТЕКУЩАЯ СТОИМОСТЬ</div>
+                <div class="stat-value" id="totalCurrentValue">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">ДОХОДНОСТЬ</div>
+                <div class="stat-value" id="profit">$0.00 (0%)</div>
             </div>
         </div>
-    </div>
-</div>
 
-        <!-- Форма добавления актива -->
+        <div class="stat-card free-usdt-card">
+            <div class="free-usdt-container">
+                <div class="free-usdt-info">
+                    <div class="stat-label">СВОБОДНО USDT</div>
+                    <div class="stat-value" id="freeUsdtValue">0 USDT</div>
+                </div>
+                <div class="free-usdt-controls">
+                    <input type="number" id="freeUsdtInput" class="free-usdt-input" placeholder="Сумма" step="0.01" value="0">
+                    <button class="action-btn" onclick="updateFreeUSDT()">Применить</button>
+                    <button class="refresh-btn" onclick="refreshPrices()">
+                        <span class="refresh-icon">🔄</span> Обновить
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="add-section">
             <h2>➕ Добавить актив</h2>
             <div class="add-form">
@@ -295,7 +78,6 @@
             </div>
         </div>
 
-        <!-- Таблица портфеля -->
         <div class="portfolio-table">
             <h2>📊 Мои активы</h2>
             <table>
@@ -315,14 +97,13 @@
                 <tbody id="portfolioBody">
                     <tr>
                         <td colspan="9" class="empty-state">
-                            Пока нет активов. Добавьте первый актив!
+                            📭 Портфель пуст. Добавьте первую монету!
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Рекомендации ИИ -->
         <div class="ai-section" id="aiSection" style="display: none;">
             <h2>🤖 Рекомендации ИИ</h2>
             <div id="aiRecommendations"></div>
