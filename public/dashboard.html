@@ -25,7 +25,13 @@
     </nav>
 
     <div class="dashboard-container">
-        <!-- Статистика -->
+        <!-- Заголовок дашборда -->
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">Мой портфель</h1>
+            <div class="dashboard-date" id="currentDate"></div>
+        </div>
+
+        <!-- Статистика (8 карточек) -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">СТОИМОСТЬ ПОРТФЕЛЯ</div>
@@ -46,22 +52,22 @@
             <div class="stat-card">
                 <div class="stat-label">ЛУЧШИЙ АКТИВ</div>
                 <div class="stat-value" id="bestAsset">—</div>
-                <div style="color: #4ade80; font-size: 0.9rem;" id="bestAssetProfit"></div>
+                <div class="positive" id="bestAssetProfit"></div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">ХУДШИЙ АКТИВ</div>
                 <div class="stat-value" id="worstAsset">—</div>
-                <div style="color: #f87171; font-size: 0.9rem;" id="worstAssetProfit"></div>
+                <div class="negative" id="worstAssetProfit"></div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">ДИВЕРСИФИКАЦИЯ</div>
                 <div class="stat-value" id="diversificationScore">0%</div>
-                <div style="color: #94a3b8; font-size: 0.9rem;" id="diversificationLevel">Низкая</div>
+                <div class="text-muted" id="diversificationLevel">Низкая</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">РИСК-СКОР</div>
                 <div class="stat-value" id="riskScore">0/10</div>
-                <div style="color: #94a3b8; font-size: 0.9rem;" id="riskLevel">Низкий</div>
+                <div class="text-muted" id="riskLevel">Низкий</div>
             </div>
         </div>
 
@@ -153,7 +159,7 @@
         </div>
 
         <!-- Сравнение с рынком и цели -->
-        <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="charts-grid">
             <div class="comparison-section">
                 <h3>📉 Сравнение с рынком</h3>
                 <div class="comparison-grid" id="comparisonGrid">
@@ -209,7 +215,7 @@
         </div>
 
         <!-- Последние действия и уведомления -->
-        <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="charts-grid">
             <div class="recent-activity">
                 <h3>🕒 Последние действия</h3>
                 <div class="activity-list" id="activityList">
