@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Скачать Cryptalyx</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">Cryptalyx</div>
+            <div class="nav-links">
+                <a href="/">Главная</a>
+                <a href="/download.html" class="active">Скачать</a>
+                <a href="/check.html">Проверить ключ</a>
+                <a href="https://t.me/cryptalyx_official_bot" target="_blank">Telegram Bot</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="download-section">
+            <div class="container">
+                <h1>Скачать Cryptalyx</h1>
+                
+                <div class="download-grid">
+                    <div class="download-card">
+                        <div class="file-icon">📊</div>
+                        <h2>Cryptalyx Excel</h2>
+                        <p>Версия для Excel с макросами</p>
+                        <div class="file-info">
+                            <span>Версия: 2.1.0</span>
+                            <span>Размер: 2.5 MB</span>
+                        </div>
+                        <div class="download-actions">
+                            <button class="btn btn-primary download-btn" data-file="cryptalyx.xlsm">
+                                Скачать
+                            </button>
+                            <div class="license-required">Требуется лицензионный ключ</div>
+                        </div>
+                    </div>
+
+                    <div class="download-card">
+                        <div class="file-icon">📘</div>
+                        <h2>Инструкция PDF</h2>
+                        <p>Подробное руководство пользователя</p>
+                        <div class="file-info">
+                            <span>Версия: 1.0</span>
+                            <span>Размер: 1.2 MB</span>
+                        </div>
+                        <div class="download-actions">
+                            <button class="btn btn-outline download-btn" data-file="instruction.pdf">
+                                Скачать инструкцию
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="license-section" id="licenseSection" style="display: none;">
+                    <h2>Введите лицензионный ключ</h2>
+                    <p>Для скачивания Cryptalyx Excel необходимо ввести лицензионный ключ</p>
+                    
+                    <div class="license-form">
+                        <input type="text" id="licenseKey" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+                        <button class="btn btn-primary" onclick="verifyAndDownload()">Подтвердить и скачать</button>
+                    </div>
+                    <div id="licenseError" class="error-message"></div>
+                </div>
+
+                <div class="telegram-note">
+                    <p>📱 Не хотите вводить ключ каждый раз?</p>
+                    <a href="https://t.me/cryptalyx_official_bot" class="btn btn-telegram" target="_blank">
+                        Открыть в Telegram
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2024 Cryptalyx. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script>
+        let currentFile = '';
+
+        document.querySelectorAll('.download-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const file = this.dataset.file;
+                
+                if (file === 'instruction.pdf') {
+                    // Инструкцию можно скачать без ключа
+                    window.location.href = `/public/${file}`;
+                } else {
+                    // Для Excel нужен ключ
+                    currentFile = file;
+                    document.getElementById('licenseSection').style.display = 'block';
+                    document.getElementById('licenseKey').focus();
+                }
+            });
+        });
+
+        async function verifyAndDownload() {
+            const licenseKey = document.getElementById('licenseKey').value.trim();
+            const errorEl = document.getElementById('licenseError');
+
+            if (!licenseKey) {
+                errorEl.textContent = 'Введите лицензионный ключ';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/check_license?license_key=${encodeURIComponent(licenseKey)}`);
+                const data = await response.json();
+
+                if (data.status === 'active') {
+                    // Ключ действителен - скачиваем файл
+                    window.location.href = `/public/${currentFile}?key=${licenseKey}`;
+                    document.getElementById('licenseSection').style.display = 'none';
+                    document.getElementById('licenseKey').value = '';
+                } else if (data.status === 'expired') {
+                    errorEl.textContent = 'Срок действия ключа истек';
+                } else if (data.status === 'not_found') {
+                    errorEl.textContent = 'Ключ не найден';
+                } else {
+                    errorEl.textContent = 'Ключ не активирован';
+                }
+            } catch (error) {
+                errorEl.textContent = 'Ошибка проверки ключа';
+                console.error(error);
+            }
+        }
+
+        // Проверяем ключ из URL (если перешли по ссылке из Telegram)
+        const urlParams = new URLSearchParams(window.location.search);
+        const keyFromUrl = urlParams.get('key');
+        if (keyFromUrl) {
+            document.getElementById('licenseKey').value = keyFromUrl;
+            document.getElementById('licenseSection').style.display = 'block';
+            verifyAndDownload();
+        }
+    </script>
+</body>
+</html>

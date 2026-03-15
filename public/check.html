@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка лицензии Cryptalyx</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">Cryptalyx</div>
+            <div class="nav-links">
+                <a href="/">Главная</a>
+                <a href="/download.html">Скачать</a>
+                <a href="/check.html" class="active">Проверить ключ</a>
+                <a href="https://t.me/cryptalyx_official_bot" target="_blank">Telegram Bot</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="check-section">
+            <div class="container">
+                <h1>Проверка лицензионного ключа</h1>
+                
+                <div class="check-card">
+                    <div class="check-form">
+                        <input type="text" id="licenseKey" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+                        <button class="btn btn-primary" onclick="checkLicense()">Проверить</button>
+                    </div>
+                    
+                    <div id="result" class="check-result" style="display: none;">
+                        <div class="result-icon" id="resultIcon">✅</div>
+                        <div class="result-title" id="resultTitle"></div>
+                        <div class="result-details" id="resultDetails"></div>
+                    </div>
+
+                    <div id="loading" style="display: none;">
+                        <div class="loader"></div>
+                        <p>Проверка ключа...</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h3>Где найти ключ?</h3>
+                    <p>Ключ приходит в Telegram после оплаты. Если вы не получили ключ:</p>
+                    <ul>
+                        <li>Проверьте сообщения от бота @cryptalyx_official_bot</li>
+                        <li>Напишите в поддержку @cryptalyx_support</li>
+                        <li>Проверьте папку "Спам" в Telegram</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2024 Cryptalyx. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <style>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .check-result {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .result-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .result-details {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+
+        .info-box h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+
+        .info-box li {
+            margin: 5px 0;
+            color: #555;
+        }
+    </style>
+
+    <script>
+        async function checkLicense() {
+            const licenseKey = document.getElementById('licenseKey').value.trim();
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+            const resultIcon = document.getElementById('resultIcon');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultDetails = document.getElementById('resultDetails');
+
+            if (!licenseKey) {
+                alert('Введите лицензионный ключ');
+                return;
+            }
+
+            // Показываем загрузку
+            resultDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+
+            try {
+                const response = await fetch(`/check_license?license_key=${encodeURIComponent(licenseKey)}`);
+                const data = await response.json();
+
+                loadingDiv.style.display = 'none';
+                resultDiv.style.display = 'block';
+
+                if (data.status === 'active') {
+                    const expireDate = new Date(data.expire_date).toLocaleDateString('ru-RU');
+                    resultIcon.textContent = '✅';
+                    resultTitle.textContent = 'Ключ действителен';
+                    resultDetails.innerHTML = `
+                        <p>Тариф: <strong>${data.plan === 'premium' ? 'Премиум' : 'Базовый'}</strong></p>
+                        <p>Действует до: <strong>${expireDate}</strong></p>
+                        <p>Вы можете скачать программу на странице <a href="/download.html">Скачать</a></p>
+                    `;
+                } else if (data.status === 'expired') {
+                    resultIcon.textContent = '⚠️';
+                    resultTitle.textContent = 'Срок действия истек';
+                    resultDetails.innerHTML = `
+                        <p>Ключ истек ${new Date(data.expire_date).toLocaleDateString('ru-RU')}</p>
+                        <p>Продлите подписку в Telegram боте</p>
+                    `;
+                } else if (data.status === 'not_found') {
+                    resultIcon.textContent = '❌';
+                    resultTitle.textContent = 'Ключ не найден';
+                    resultDetails.innerHTML = `
+                        <p>Проверьте правильность ввода ключа</p>
+                        <p>Формат: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX</p>
+                    `;
+                } else {
+                    resultIcon.textContent = '❌';
+                    resultTitle.textContent = 'Ключ не активирован';
+                    resultDetails.innerHTML = `
+                        <p>Статус: ${data.status}</p>
+                        <p>Оплатите подписку в Telegram боте</p>
+                    `;
+                }
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                resultDiv.style.display = 'block';
+                resultIcon.textContent = '❌';
+                resultTitle.textContent = 'Ошибка';
+                resultDetails.textContent = 'Не удалось проверить ключ. Попробуйте позже.';
+                console.error(error);
+            }
+        }
+
+        // Проверяем ключ из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const keyFromUrl = urlParams.get('key');
+        if (keyFromUrl) {
+            document.getElementById('licenseKey').value = keyFromUrl;
+            checkLicense();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в Cryptalyx</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .telegram-login {
+            background: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+        }
+
+        .telegram-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,136,204,0.3);
+        }
+
+        .telegram-icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .or-divider {
+            margin: 30px 0;
+            display: flex;
+            align-items: center;
+            color: #999;
+        }
+
+        .or-divider::before,
+        .or-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .or-divider span {
+            padding: 0 15px;
+        }
+
+        .license-login {
+            text-align: left;
+        }
+
+        .license-login label {
+            display: block;
+            color: #333;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .license-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: monospace;
+            margin-bottom: 15px;
+            transition: border-color 0.2s;
+        }
+
+        .license-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .info-text {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #999;
+        }
+
+        .info-text a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .info-text a:hover {
+            text-decoration: underline;
+        }
+
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            color: #999;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">Cryptalyx</div>
+        <h2>Добро пожаловать!</h2>
+        <p class="subtitle">Войдите в свой личный кабинет</p>
+
+        <!-- Кнопка входа через Telegram -->
+        <a href="https://t.me/cryptalyx_official_bot" target="_blank" class="telegram-login">
+            <svg class="telegram-icon" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.06-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.04-.48-.82-.27-1.47-.42-1.42-.88.03-.24.35-.49.98-.74 3.84-1.67 6.4-2.78 7.68-3.32 3.66-1.54 4.42-1.81 4.92-1.82.11 0 .35.02.51.15.13.11.17.26.18.4-.01.11-.03.29-.07.47z"/>
+            </svg>
+            Войти через Telegram
+        </a>
+
+        <div class="or-divider">
+            <span>или</span>
+        </div>
+
+        <!-- Вход по лицензионному ключу -->
+        <div class="license-login">
+            <label>Введите лицензионный ключ</label>
+            <input type="text" class="license-input" id="licenseKey" 
+                   placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" 
+                   onkeypress="if(event.key==='Enter') loginWithKey()">
+            <button class="login-btn" onclick="loginWithKey()">Войти</button>
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <div class="info-text">
+            Нет ключа? <a href="https://t.me/cryptalyx_official_bot" target="_blank">Купить подписку в Telegram</a>
+        </div>
+
+        <a href="/" class="back-link">← Вернуться на главную</a>
+    </div>
+
+    <script src="script.js"></script>
+<script>
+// Проверяем авторизацию
+if (localStorage.getItem('licenseKey')) {
+    // Полностью меняем содержимое страницы
+    document.body.innerHTML = `
+        <div class="login-container" style="text-align: center;">
+            <div class="logo">Cryptalyx</div>
+            <div class="subtitle">Вы уже авторизованы</div>
+            
+            <div style="background: #0f172a; padding: 2rem; border-radius: 1.5rem; margin: 2rem 0; border: 1px solid #334155;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🔑</div>
+                <div style="color: #4ade80; font-family: monospace; font-size: 1.1rem; margin-bottom: 1rem;">
+                    ${localStorage.getItem('licenseKey').substring(0, 14)}...
+                </div>
+                <div style="color: #94a3b8; font-size: 0.9rem;">
+                    План: ${localStorage.getItem('plan') === 'premium' ? 'PREMIUM' : 'BASIC'}
+                </div>
+            </div>
+
+            <a href="/dashboard.html" class="login-btn" style="text-align: center; text-decoration: none; display: block; margin-bottom: 1rem;">
+                Перейти в портфель →
+            </a>
+            
+            <button onclick="logout()" class="telegram-btn" style="background: #334155; margin-top: 1rem;">
+                Выйти и войти заново
+            </button>
+        </div>
+    `;
+}
+
+// Функция выхода
+function logout() {
+    localStorage.clear();
+    window.location.href = '/login.html';
+}
+
+// Функция входа по ключу
+async function loginWithKey() {
+    const licenseKey = document.getElementById('licenseKey').value.trim();
+    const errorEl = document.getElementById('errorMessage');
+
+    if (!licenseKey) {
+        errorEl.textContent = 'Введите лицензионный ключ';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/check_license?license_key=${encodeURIComponent(licenseKey)}`);
+        const data = await response.json();
+
+        if (data.status === 'active') {
+            // Сохраняем ключ в localStorage
+            localStorage.setItem('licenseKey', licenseKey);
+            localStorage.setItem('plan', data.plan);
+            localStorage.setItem('expireDate', data.expire_date);
+            
+            // Перенаправляем в дашборд
+            window.location.href = '/dashboard.html';
+        } else if (data.status === 'expired') {
+            errorEl.textContent = 'Срок действия ключа истек';
+            errorEl.style.display = 'block';
+        } else {
+            errorEl.textContent = 'Ключ не найден или не активирован';
+            errorEl.style.display = 'block';
+        }
+    } catch (error) {
+        errorEl.textContent = 'Ошибка подключения к серверу';
+        errorEl.style.display = 'block';
+        console.error(error);
+    }
+}
+
+// Делаем функции глобальными
+window.loginWithKey = loginWithKey;
+window.logout = logout;
+</script>
+</body>
+</html>
