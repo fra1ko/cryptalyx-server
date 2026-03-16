@@ -740,6 +740,27 @@ footer {
     flex: 1;
 }
 
+/* Стили для плейсхолдеров */
+.form-group input::placeholder {
+    color: #475569;
+    font-style: italic;
+    opacity: 0.7;
+    font-size: 0.95rem;
+}
+
+.form-group input:focus::placeholder {
+    opacity: 0.4;
+}
+
+/* Подсказка под формой */
+.input-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
 .form-group label {
     display: block;
     font-size: 0.85rem;
@@ -756,7 +777,7 @@ footer {
     font-size: 1rem;
     transition: all 0.2s;
     background: #0f172a;
-    color: #6f7070;
+    color: #f1f5f9;
 }
 
 .form-group input:focus {
@@ -1830,4 +1851,206 @@ td {
 /* Для доходности такой же размер как у других */
 #profit {
     font-size: 2rem !important;
+}
+
+/* ===== ИМПОРТ CSV ===== */
+.import-section {
+    background: #1e293b;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid #334155;
+}
+
+.import-section h3 {
+    color: #f1f5f9;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.import-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.exchange-select {
+    background: #0f172a;
+    border: 2px solid #334155;
+    color: #f1f5f9;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    font-size: 1rem;
+    min-width: 150px;
+    cursor: pointer;
+}
+
+.exchange-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.exchange-select option {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+.file-input {
+    background: #0f172a;
+    border: 2px dashed #334155;
+    color: #f1f5f9;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    font-size: 1rem;
+    flex: 1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-input:hover {
+    border-color: #3b82f6;
+    background: #1e293b;
+}
+
+.file-input::file-selector-button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    margin-right: 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.file-input::file-selector-button:hover {
+    background: #2563eb;
+}
+
+.import-preview {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: #0f172a;
+    border-radius: 1rem;
+    border: 1px solid #3b82f6;
+}
+
+.import-preview h4 {
+    color: #f1f5f9;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.import-preview .action-btn {
+    margin-right: 1rem;
+    padding: 0.5rem 1.5rem;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .import-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .exchange-select {
+        width: 100%;
+    }
+    
+    .file-input {
+        width: 100%;
+    }
+    
+    .import-preview .action-btn {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Анимация для превью */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.import-preview {
+    animation: slideDown 0.3s ease;
+}
+
+/* Стили для успешного импорта */
+.import-success {
+    color: #4ade80;
+    background: #0a2f1f;
+    border: 1px solid #15803d;
+    padding: 1rem;
+    border-radius: 1rem;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.import-error {
+    color: #f87171;
+    background: #450a0a;
+    border: 1px solid #991b1b;
+    padding: 1rem;
+    border-radius: 1rem;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Иконки для статуса */
+.import-icon {
+    font-size: 1.5rem;
+}
+
+/* Подсказка по формату CSV */
+.csv-format-hint {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #0f172a;
+    border-radius: 1rem;
+    border: 1px solid #334155;
+}
+
+.csv-format-hint p {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.csv-format-hint code {
+    background: #1e293b;
+    color: #4ade80;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.85rem;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.csv-example {
+    background: #1e293b;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-family: monospace;
+    margin-top: 0.5rem;
+    border: 1px solid #334155;
 }

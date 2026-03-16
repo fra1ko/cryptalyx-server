@@ -772,6 +772,54 @@ function changeChartPeriod(period) {
     portfolio.updateCharts();
 }
 
+async function importCSV() {
+    const fileInput = document.getElementById('csvFile');
+    const exchange = document.getElementById('exchangeSelect').value;
+    
+    if (!fileInput.files[0]) {
+        alert('Выберите CSV файл');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('exchange', exchange);
+    
+    try {
+        const response = await fetch('/api/import/csv', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.importedTransactions = data.transactions;
+            document.getElementById('importCount').textContent = data.count;
+            document.getElementById('importPreview').style.display = 'block';
+        }
+    } catch (error) {
+        alert('Ошибка импорта: ' + error.message);
+    }
+}
+
+function confirmImport() {
+    if (!window.importedTransactions) return;
+    
+    window.importedTransactions.forEach(t => {
+        if (t.type === 'buy') {
+            portfolio.addAsset(t.coin, t.amount, t.price);
+        }
+    });
+    
+    document.getElementById('importPreview').style.display = 'none';
+    document.getElementById('csvFile').value = '';
+    alert('Импорт завершен!');
+}
+
+window.importCSV = importCSV;
+window.confirmImport = confirmImport;
+
 // Закрываем меню при клике вне
 document.addEventListener('click', function(event) {
     const navLinks = document.querySelector('.nav-links');

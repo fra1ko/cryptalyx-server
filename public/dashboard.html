@@ -130,6 +130,26 @@
             </div>
         </div>
 
+        <!-- Добавить после блока с добавлением актива -->
+<div class="import-section">
+    <h3>📤 Импорт из CSV</h3>
+    <div class="import-controls">
+        <select id="exchangeSelect" class="exchange-select">
+            <option value="bybit">Bybit</option>
+            <option value="binance">Binance</option>
+            <option value="kucoin">KuCoin</option>
+            <option value="okx">OKX</option>
+        </select>
+        <input type="file" id="csvFile" accept=".csv" class="file-input">
+        <button class="action-btn" onclick="importCSV()">Импортировать</button>
+    </div>
+    <div id="importPreview" class="import-preview" style="display: none;">
+        <h4>Найдено транзакций: <span id="importCount">0</span></h4>
+        <button class="action-btn" onclick="confirmImport()">Добавить в портфель</button>
+        <button class="action-btn" onclick="cancelImport()">Отмена</button>
+    </div>
+</div>
+
         <!-- Таблица портфеля -->
         <div class="portfolio-table">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
