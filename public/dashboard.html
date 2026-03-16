@@ -81,9 +81,6 @@
                 <div class="free-usdt-controls">
                     <input type="number" id="freeUsdtInput" class="free-usdt-input" placeholder="Сумма" step="0.01" value="0">
                     <button class="action-btn" onclick="updateFreeUSDT()">Применить</button>
-                    <button class="refresh-btn" onclick="refreshPrices()">
-                        <span class="refresh-icon">🔄</span> Обновить
-                    </button>
                 </div>
             </div>
         </div>
@@ -98,7 +95,15 @@
                 <div class="category-legend" id="categoryLegend"></div>
             </div>
             <div class="chart-card">
-                <h3>📈 История портфеля (30 дней)</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>📈 История портфеля</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-outline period-btn" style="padding: 0.25rem 0.75rem;" onclick="changeChartPeriod('1d')">1д</button>
+                        <button class="btn btn-outline period-btn" style="padding: 0.25rem 0.75rem;" onclick="changeChartPeriod('1w')">1н</button>
+                        <button class="btn btn-outline period-btn active" style="padding: 0.25rem 0.75rem;" onclick="changeChartPeriod('1m')">1м</button>
+                        <button class="btn btn-outline period-btn" style="padding: 0.25rem 0.75rem;" onclick="changeChartPeriod('1y')">1г</button>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="portfolioChart"></canvas>
                 </div>
@@ -127,7 +132,12 @@
 
         <!-- Таблица портфеля -->
         <div class="portfolio-table">
-            <h2>📊 Мои активы</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2>📊 Мои активы</h2>
+                <button class="refresh-btn" onclick="refreshPrices()">
+                    <span class="refresh-icon">🔄</span> Обновить цены
+                </button>
+            </div>
             <div class="table-wrapper" id="tableWrapper">
                 <table>
                     <thead>
@@ -155,62 +165,6 @@
             <div class="scroll-buttons">
                 <button class="scroll-btn" onclick="scrollTable('left')">←</button>
                 <button class="scroll-btn" onclick="scrollTable('right')">→</button>
-            </div>
-        </div>
-
-        <!-- Сравнение с рынком и цели -->
-        <div class="charts-grid">
-            <div class="comparison-section">
-                <h3>📉 Сравнение с рынком</h3>
-                <div class="comparison-grid" id="comparisonGrid">
-                    <div class="comparison-item">
-                        <span>Ваш портфель</span>
-                        <span class="positive" id="portfolioVsMarket">0%</span>
-                    </div>
-                    <div class="comparison-item">
-                        <span>BTC</span>
-                        <span class="positive" id="btcChange">0%</span>
-                    </div>
-                    <div class="comparison-item">
-                        <span>ETH</span>
-                        <span class="positive" id="ethChange">0%</span>
-                    </div>
-                    <div class="comparison-item">
-                        <span>Total 3</span>
-                        <span class="positive" id="total3Change">0%</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="goals-section">
-                <h3>🎯 Цели портфеля</h3>
-                <div class="goal-item">
-                    <div class="goal-info">
-                        <span>Накопить 1 BTC</span>
-                        <span id="btcGoal">0 / 1 BTC</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="btcProgress" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="goal-item">
-                    <div class="goal-info">
-                        <span>Доходность 50% годовых</span>
-                        <span id="profitGoal">0%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="profitProgress" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="goal-item">
-                    <div class="goal-info">
-                        <span>Диверсификация (мин. 3 монеты)</span>
-                        <span id="diversityGoal">0/3</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="diversityProgress" style="width: 0%"></div>
-                    </div>
-                </div>
             </div>
         </div>
 

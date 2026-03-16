@@ -1819,3 +1819,15 @@ td {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
+
+.dashboard-container .stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    line-height: 1.2;
+}
+
+/* Для доходности такой же размер как у других */
+#profit {
+    font-size: 2rem !important;
+}

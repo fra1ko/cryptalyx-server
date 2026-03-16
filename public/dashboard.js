@@ -5,9 +5,10 @@ class Portfolio {
         this.prices = {};
         this.freeUSDT = parseFloat(localStorage.getItem('freeUSDT')) || 0;
         this.activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
+        this.chartPeriod = localStorage.getItem('chartPeriod') || '1m';
         this.load();
         this.startPriceUpdate();
-        this.initCharts();
+        setTimeout(() => this.initCharts(), 500);
     }
 
     load() {
@@ -53,7 +54,7 @@ class Portfolio {
             const totalValue = (existing.amount * existing.price) + (amount * price);
             existing.amount = totalAmount;
             existing.price = totalValue / totalAmount;
-            this.addActivity('➕ Добавлено', `${amount} ${coin} по $${price}`);
+            this.addActivity('➕ Добавлено', `${amount} ${coin} по $${price.toFixed(2)}`);
         } else {
             this.assets.push({
                 coin,
@@ -61,7 +62,7 @@ class Portfolio {
                 price,
                 id: Date.now()
             });
-            this.addActivity('➕ Новый актив', `${coin} ${amount} шт. по $${price}`);
+            this.addActivity('➕ Новый актив', `${coin} ${amount} шт. по $${price.toFixed(2)}`);
         }
         
         this.save();
@@ -85,13 +86,31 @@ class Portfolio {
 
     async updatePrices() {
         for (const asset of this.assets) {
+            // Пробуем Binance
             try {
                 const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset.coin}USDT`);
                 if (response.ok) {
                     const data = await response.json();
                     this.prices[asset.coin] = parseFloat(data.price);
+                    continue;
                 }
             } catch (e) {}
+
+            // Пробуем CoinGecko
+            try {
+                const coinLower = asset.coin.toLowerCase();
+                const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinLower}&vs_currencies=usd`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data[coinLower]?.usd) {
+                        this.prices[asset.coin] = data[coinLower].usd;
+                        continue;
+                    }
+                }
+            } catch (e) {}
+
+            // Если не нашли, ставим 0
+            this.prices[asset.coin] = 0;
         }
         this.render();
     }
@@ -201,10 +220,7 @@ class Portfolio {
     }
 
     initCharts() {
-        // Инициализация графиков после загрузки страницы
-        setTimeout(() => {
-            this.updateCharts();
-        }, 500);
+        this.updateCharts();
     }
 
     updateCharts() {
@@ -213,19 +229,29 @@ class Portfolio {
         // График истории портфеля
         const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
         if (portfolioCtx) {
+            // Очищаем предыдущий график
+            if (window.portfolioChart) window.portfolioChart.destroy();
+            
             const dates = [];
             const values = [];
             
-            for (let i = 30; i >= 0; i--) {
+            let days = 30;
+            if (this.chartPeriod === '1d') days = 1;
+            if (this.chartPeriod === '1w') days = 7;
+            if (this.chartPeriod === '1m') days = 30;
+            if (this.chartPeriod === '1y') days = 365;
+            
+            for (let i = days; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);
                 dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
                 
+                // Генерируем историю на основе текущего портфеля
                 const randomFactor = 0.95 + Math.random() * 0.1;
                 values.push(stats.totalPortfolioValue * randomFactor);
             }
             
-            new Chart(portfolioCtx, {
+            window.portfolioChart = new Chart(portfolioCtx, {
                 type: 'line',
                 data: {
                     labels: dates,
@@ -258,7 +284,10 @@ class Portfolio {
 
         // График распределения по категориям
         const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
-        if (categoryCtx && this.assets.length > 0) {
+        if (categoryCtx) {
+            // Очищаем предыдущий график
+            if (window.categoryChart) window.categoryChart.destroy();
+            
             const categories = {
                 'L1': ['BTC', 'ETH', 'SOL', 'BNB'],
                 'L2': ['MATIC', 'ARB', 'OP'],
@@ -267,6 +296,14 @@ class Portfolio {
             };
             
             const categoryData = {};
+            const categoryColors = {
+                'L1': '#3b82f6',
+                'L2': '#8b5cf6',
+                'DeFi': '#ec4899',
+                'Meme': '#f59e0b',
+                'Other': '#64748b'
+            };
+            
             let totalValue = 0;
             
             this.assets.forEach(asset => {
@@ -284,13 +321,18 @@ class Portfolio {
                 categoryData[category] = (categoryData[category] || 0) + value;
             });
             
-            new Chart(categoryCtx, {
+            // Если нет данных, показываем заглушку
+            if (Object.keys(categoryData).length === 0) {
+                categoryData['Нет данных'] = 1;
+            }
+            
+            window.categoryChart = new Chart(categoryCtx, {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(categoryData),
                     datasets: [{
                         data: Object.values(categoryData),
-                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#64748b'],
+                        backgroundColor: Object.keys(categoryData).map(cat => categoryColors[cat] || '#64748b'),
                         borderWidth: 0
                     }]
                 },
@@ -300,6 +342,17 @@ class Portfolio {
                     plugins: { legend: { display: false } }
                 }
             });
+
+            // Легенда
+            const legend = document.getElementById('categoryLegend');
+            if (legend) {
+                legend.innerHTML = Object.keys(categoryData).map(cat => `
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: ${categoryColors[cat] || '#64748b'};"></span>
+                        <span>${cat}</span>
+                    </div>
+                `).join('');
+            }
         }
     }
 
@@ -323,10 +376,19 @@ class Portfolio {
         if (bestWorst.bestAsset) {
             document.getElementById('bestAsset').textContent = bestWorst.bestAsset.coin;
             document.getElementById('bestAssetProfit').textContent = `+${bestWorst.bestProfit.toFixed(1)}%`;
+            document.getElementById('bestAssetProfit').className = 'positive';
+        } else {
+            document.getElementById('bestAsset').textContent = '—';
+            document.getElementById('bestAssetProfit').textContent = '';
         }
+        
         if (bestWorst.worstAsset) {
             document.getElementById('worstAsset').textContent = bestWorst.worstAsset.coin;
             document.getElementById('worstAssetProfit').textContent = `${bestWorst.worstProfit.toFixed(1)}%`;
+            document.getElementById('worstAssetProfit').className = 'negative';
+        } else {
+            document.getElementById('worstAsset').textContent = '—';
+            document.getElementById('worstAssetProfit').textContent = '';
         }
         
         // Диверсификация
@@ -337,24 +399,12 @@ class Portfolio {
         document.getElementById('riskScore').textContent = `${riskScore}/10`;
         document.getElementById('riskLevel').textContent = this.getRiskLevel(riskScore);
         
-        // Сравнение с рынком
-        const btcPrice = this.prices['BTC'] || 0;
-        const ethPrice = this.prices['ETH'] || 0;
-        document.getElementById('portfolioVsMarket').textContent = `${stats.profitPercent.toFixed(1)}%`;
-        document.getElementById('portfolioVsMarket').className = stats.profitPercent >= 0 ? 'positive' : 'negative';
-        document.getElementById('btcChange').textContent = btcPrice ? `${((btcPrice - 35000) / 35000 * 100).toFixed(1)}%` : '0%';
-        document.getElementById('ethChange').textContent = ethPrice ? `${((ethPrice - 2000) / 2000 * 100).toFixed(1)}%` : '0%';
-        
-        // Цели
-        const btcAmount = this.assets.find(a => a.coin === 'BTC')?.amount || 0;
-        document.getElementById('btcGoal').textContent = `${btcAmount.toFixed(4)} / 1 BTC`;
-        document.getElementById('btcProgress').style.width = `${Math.min(100, btcAmount * 100)}%`;
-        
-        document.getElementById('profitGoal').textContent = `${stats.profitPercent.toFixed(1)}% / 50%`;
-        document.getElementById('profitProgress').style.width = `${Math.min(100, stats.profitPercent * 2)}%`;
-        
-        document.getElementById('diversityGoal').textContent = `${this.assets.length} / 3`;
-        document.getElementById('diversityProgress').style.width = `${Math.min(100, (this.assets.length / 3) * 100)}%`;
+        // Дата
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
         
         // Таблица портфеля
         const tbody = document.getElementById('portfolioBody');
@@ -363,47 +413,51 @@ class Portfolio {
         if (this.assets.length === 0) {
             tbody.innerHTML = '<tr><td colspan="9" class="empty-state">📭 Портфель пуст. Добавьте первую монету!</td></tr>';
             document.getElementById('aiSection').style.display = 'none';
-            return;
+        } else {
+            let rows = '';
+
+            this.assets.forEach(asset => {
+                const currentPrice = this.prices[asset.coin] || 0;
+                const currentValue = asset.amount * currentPrice;
+                const buyValue = asset.amount * asset.price;
+                const profit = currentValue - buyValue;
+                const profitPercent = buyValue > 0 ? (profit / buyValue * 100) : 0;
+                const share = stats.totalCurrentValue > 0 ? (currentValue / stats.totalCurrentValue * 100) : 0;
+
+                rows += `
+                    <tr>
+                        <td><strong>${asset.coin}</strong></td>
+                        <td>${asset.amount.toFixed(6)}</td>
+                        <td>$${asset.price.toFixed(2)}</td>
+                        <td>$${currentPrice.toFixed(2)}</td>
+                        <td>$${buyValue.toFixed(2)}</td>
+                        <td>$${currentValue.toFixed(2)}</td>
+                        <td class="${profit >= 0 ? 'positive' : 'negative'}">
+                            ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)} (${profitPercent.toFixed(2)}%)
+                        </td>
+                        <td>${share.toFixed(1)}%</td>
+                        <td><button class="delete-btn" onclick="portfolio.removeAsset(${asset.id})">🗑️</button></td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rows;
+            document.getElementById('aiSection').style.display = 'block';
         }
-
-        let rows = '';
-
-        this.assets.forEach(asset => {
-            const currentPrice = this.prices[asset.coin] || 0;
-            const currentValue = asset.amount * currentPrice;
-            const buyValue = asset.amount * asset.price;
-            const profit = currentValue - buyValue;
-            const profitPercent = buyValue > 0 ? (profit / buyValue * 100) : 0;
-            const share = stats.totalCurrentValue > 0 ? (currentValue / stats.totalCurrentValue * 100) : 0;
-
-            rows += `
-                <tr>
-                    <td><strong>${asset.coin}</strong></td>
-                    <td>${asset.amount.toFixed(6)}</td>
-                    <td>$${asset.price.toFixed(2)}</td>
-                    <td>$${currentPrice.toFixed(2)}</td>
-                    <td>$${buyValue.toFixed(2)}</td>
-                    <td>$${currentValue.toFixed(2)}</td>
-                    <td class="${profit >= 0 ? 'positive' : 'negative'}">
-                        ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)} (${profitPercent.toFixed(2)}%)
-                    </td>
-                    <td>${share.toFixed(1)}%</td>
-                    <td><button class="delete-btn" onclick="portfolio.removeAsset(${asset.id})">🗑️</button></td>
-                </tr>
-            `;
-        });
-
-        tbody.innerHTML = rows;
         
         // Последние действия
         const activityList = document.getElementById('activityList');
-        if (activityList && this.activityLog.length > 0) {
-            activityList.innerHTML = this.activityLog.map(a => `
-                <div class="activity-item">
-                    <span>${a.action} ${a.details}</span>
-                    <span class="activity-time">${a.time}</span>
-                </div>
-            `).join('');
+        if (activityList) {
+            if (this.activityLog.length > 0) {
+                activityList.innerHTML = this.activityLog.map(a => `
+                    <div class="activity-item">
+                        <span>${a.action} ${a.details}</span>
+                        <span class="activity-time">${a.time}</span>
+                    </div>
+                `).join('');
+            } else {
+                activityList.innerHTML = '<div class="activity-item"><span>Пока нет действий</span></div>';
+            }
         }
         
         // Уведомления
@@ -413,21 +467,21 @@ class Portfolio {
             
             if (this.assets.length === 0) {
                 alerts.push({ type: 'info', text: 'Добавьте первый актив' });
+            } else {
+                if (bestWorst.bestProfit > 50) {
+                    alerts.push({ type: 'success', text: `${bestWorst.bestAsset?.coin} вырос на ${bestWorst.bestProfit.toFixed(1)}%!` });
+                }
+                
+                if (bestWorst.worstProfit < -30) {
+                    alerts.push({ type: 'danger', text: `${bestWorst.worstAsset?.coin} упал на ${Math.abs(bestWorst.worstProfit).toFixed(1)}%` });
+                }
+                
+                if (diversificationScore < 30) {
+                    alerts.push({ type: 'warning', text: 'Низкая диверсификация. Добавьте другие монеты' });
+                }
             }
             
-            if (bestWorst.bestProfit > 50) {
-                alerts.push({ type: 'success', text: `${bestWorst.bestAsset?.coin} вырос на ${bestWorst.bestProfit.toFixed(1)}%!` });
-            }
-            
-            if (bestWorst.worstProfit < -30) {
-                alerts.push({ type: 'danger', text: `${bestWorst.worstAsset?.coin} упал на ${Math.abs(bestWorst.worstProfit).toFixed(1)}%` });
-            }
-            
-            if (diversificationScore < 30) {
-                alerts.push({ type: 'warning', text: 'Низкая диверсификация. Добавьте другие монеты' });
-            }
-            
-            if (alerts.length === 0) {
+            if (alerts.length === 0 && this.assets.length > 0) {
                 alerts.push({ type: 'info', text: 'Все хорошо. Продолжайте в том же духе' });
             }
             
@@ -440,13 +494,17 @@ class Portfolio {
         }
         
         this.renderAI();
-        document.getElementById('aiSection').style.display = 'block';
         this.updateCharts();
     }
 
     renderAI() {
         const aiDiv = document.getElementById('aiRecommendations');
         if (!aiDiv) return;
+        
+        if (this.assets.length === 0) {
+            document.getElementById('aiSection').style.display = 'none';
+            return;
+        }
         
         const stats = this.getStats();
         const bestWorst = this.getBestAndWorstAssets();
@@ -471,8 +529,10 @@ class Portfolio {
             const currentPrice = this.prices[asset.coin] || 0;
             const profit = ((currentPrice - asset.price) / asset.price * 100);
             
-            if (profit < -20) {
+            if (profit < -20 && profit > -50) {
                 recommendations.push(`📉 **Убыток**: ${asset.coin} упал на ${Math.abs(profit).toFixed(1)}%`);
+            } else if (profit < -50) {
+                recommendations.push(`🔴 **Критический убыток**: ${asset.coin} упал на ${Math.abs(profit).toFixed(1)}%. Пересмотрите инвестицию.`);
             } else if (profit > 50) {
                 recommendations.push(`💰 **Прибыль**: ${asset.coin} вырос на ${profit.toFixed(1)}%`);
             }
@@ -483,7 +543,7 @@ class Portfolio {
         }
         
         if (recommendations.length === 0) {
-            recommendations.push(`✅ **Сбалансированный портфель**`);
+            recommendations.push(`✅ **Сбалансированный портфель**: хорошее распределение`);
         }
         
         aiDiv.innerHTML = recommendations.slice(0, 3).map(r => `
@@ -519,6 +579,7 @@ function addAsset() {
 
     portfolio.addAsset(coin, amount, price);
     
+    // Очистка полей
     document.getElementById('coinInput').value = '';
     document.getElementById('amountInput').value = '';
     document.getElementById('priceInput').value = '';
@@ -540,13 +601,13 @@ function refreshPrices() {
     const btn = document.querySelector('.refresh-btn');
     if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳ Обновление...';
+        btn.innerHTML = '<span class="refresh-icon">⏳</span> Обновление...';
     }
     
     portfolio.updatePrices().finally(() => {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Обновить цены';
+            btn.innerHTML = '<span class="refresh-icon">🔄</span> Обновить цены';
         }
     });
 }
@@ -567,6 +628,19 @@ function scrollTable(direction) {
     }
     
     wrapper.classList.add('scrolled');
+}
+
+function changeChartPeriod(period) {
+    localStorage.setItem('chartPeriod', period);
+    
+    // Подсветка активной кнопки
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    portfolio.chartPeriod = period;
+    portfolio.updateCharts();
 }
 
 // Закрываем меню при клике вне
@@ -595,6 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.refreshPrices = refreshPrices;
     window.toggleMobileMenu = toggleMobileMenu;
     window.scrollTable = scrollTable;
+    window.changeChartPeriod = changeChartPeriod;
 });
 
 // Скрываем индикатор после прокрутки
