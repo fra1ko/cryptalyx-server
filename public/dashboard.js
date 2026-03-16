@@ -781,10 +781,21 @@ async function importCSV() {
         return;
     }
     
+    // Проверяем размер файла (предупреждение)
+    const fileSize = fileInput.files[0].size / (1024 * 1024);
+    if (fileSize > 10) {
+        if (!confirm(`Файл большой (${fileSize.toFixed(1)} МБ). Обработка может занять некоторое время. Продолжить?`)) {
+            return;
+        }
+    }
+    
     const importBtn = document.querySelector('.import-section .action-btn');
     const originalText = importBtn.textContent;
     importBtn.textContent = '⏳ Загрузка...';
     importBtn.disabled = true;
+    
+    // Показываем прогресс
+    showMessage(`⏳ Обработка файла... Это может занять до минуты`, 'info');
     
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
@@ -806,16 +817,17 @@ async function importCSV() {
             if (data.count > 0) {
                 document.getElementById('importPreview').style.display = 'block';
                 
-                // Показываем детали в консоли
-                console.log('📊 Найденные монеты:', data.coins);
-                console.log('📈 Итоговые позиции:', data.transactions);
+                // Показываем детали
+                let details = `✅ Найдено ${data.count} монет\n`;
+                details += `📊 Обработано ${data.processed} строк из ${data.totalLines}\n`;
+                details += `⏱ Время: ${data.time}\n\n`;
+                details += `Топ монет:\n`;
                 
-                let details = `Найдено ${data.count} монет:\n`;
-                data.transactions.slice(0, 3).forEach(t => {
-                    details += `${t.coin}: ${t.amount.toFixed(4)} по средней $${t.price.toFixed(2)}\n`;
+                data.transactions.slice(0, 5).forEach(t => {
+                    details += `${t.coin}: ${t.amount.toFixed(4)} (${t.count} покупок)\n`;
                 });
                 
-                showMessage(`✅ Найдено ${data.count} монет`, 'success');
+                showMessage(details, 'success');
             } else {
                 showMessage('❌ Не найдено спот-покупок в CSV', 'error');
             }
@@ -837,22 +849,35 @@ function showMessage(text, type) {
     if (oldMsg) oldMsg.remove();
     
     const msg = document.createElement('div');
-    msg.className = type === 'success' ? 'import-success' : 'import-error';
+    msg.className = type === 'success' ? 'import-success' : type === 'info' ? 'import-info' : 'import-error';
     msg.style.marginTop = '1rem';
     msg.style.padding = '0.75rem 1rem';
     msg.style.borderRadius = '0.5rem';
-    msg.style.backgroundColor = type === 'success' ? '#0a2f1f' : '#450a0a';
-    msg.style.color = type === 'success' ? '#4ade80' : '#f87171';
-    msg.style.border = type === 'success' ? '1px solid #15803d' : '1px solid #991b1b';
+    msg.style.whiteSpace = 'pre-line';
+    
+    if (type === 'success') {
+        msg.style.backgroundColor = '#0a2f1f';
+        msg.style.color = '#4ade80';
+        msg.style.border = '1px solid #15803d';
+    } else if (type === 'info') {
+        msg.style.backgroundColor = '#1e293b';
+        msg.style.color = '#94a3b8';
+        msg.style.border = '1px solid #3b82f6';
+    } else {
+        msg.style.backgroundColor = '#450a0a';
+        msg.style.color = '#f87171';
+        msg.style.border = '1px solid #991b1b';
+    }
+    
     msg.innerHTML = `
-        <span style="margin-right: 0.5rem;">${type === 'success' ? '✅' : '❌'}</span>
+        <span style="margin-right: 0.5rem;">${type === 'success' ? '✅' : type === 'info' ? 'ℹ️' : '❌'}</span>
         <span>${text}</span>
     `;
     
     const importSection = document.querySelector('.import-section');
     importSection.appendChild(msg);
     
-    setTimeout(() => msg.remove(), 5000);
+    setTimeout(() => msg.remove(), 10000);
 }
 
 function confirmImport() {

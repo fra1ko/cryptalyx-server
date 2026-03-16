@@ -2054,3 +2054,37 @@ td {
     margin-top: 0.5rem;
     border: 1px solid #334155;
 }
+
+.import-info {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #3b82f6;
+    padding: 1rem;
+    border-radius: 1rem;
+    margin-top: 1rem;
+    white-space: pre-line;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.import-success {
+    background: #0a2f1f;
+    color: #4ade80;
+    border: 1px solid #15803d;
+    padding: 1rem;
+    border-radius: 1rem;
+    margin-top: 1rem;
+    white-space: pre-line;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.import-error {
+    background: #450a0a;
+    color: #f87171;
+    border: 1px solid #991b1b;
+    padding: 1rem;
+    border-radius: 1rem;
+    margin-top: 1rem;
+    white-space: pre-line;
+}

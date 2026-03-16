@@ -235,7 +235,10 @@ app.get('/api/price/:coin', async (req, res) => {
 });
 
 // ===== ИМПОРТ CSV =====
-const upload = multer({ dest: '/tmp/uploads/' });
+const upload = multer({ 
+    dest: '/tmp/uploads/',
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB максимум
+});
 
 app.post('/api/import/csv', upload.single('file'), async (req, res) => {
     try {
@@ -244,100 +247,95 @@ app.post('/api/import/csv', upload.single('file'), async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ error: 'Файл не загружен' });
         }
-        
-        console.log('📥 Импорт CSV:', exchange, req.file.path);
-        
-        // Читаем файл как текст
+
+        console.log('📥 Начинаем импорт CSV. Файл:', req.file.path);
+        console.log('📊 Размер файла:', req.file.size, 'байт');
+
+        const results = [];
+        let lineCount = 0;
+        const maxLines = 100000; // Обрабатываем максимум 100к строк
+        const startTime = Date.now();
+
+        // Читаем файл построчно
         const fileContent = fs.readFileSync(req.file.path, 'utf8');
         const lines = fileContent.split('\n');
         
+        console.log(`📊 Всего строк в файле: ${lines.length}`);
+
         // Удаляем временный файл
         fs.unlinkSync(req.file.path);
-        
+
         const transactions = [];
-        const coinAmounts = {}; // для агрегации по монетам
+        const coinAmounts = {}; // для агрегации
         
-        if (exchange === 'bybit') {
-            // Заголовки: Currency,Contract,Type,Direction,Quantity,Position,Filled Price,Funding,Fee Paid,Cash Flow,Change,Wallet Balance,Action,OrderId,TradedTime
+        // Парсим только первые maxLines строк
+        for (let i = 1; i < Math.min(lines.length, maxLines + 1); i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
             
-            for (let i = 1; i < lines.length; i++) { // пропускаем заголовок
-                const line = lines[i].trim();
-                if (!line) continue;
+            lineCount++;
+            if (lineCount % 10000 === 0) {
+                console.log(`⏳ Обработано ${lineCount} строк...`);
+            }
+            
+            const parts = line.split(',');
+            if (parts.length < 10) continue;
+            
+            const currency = parts[0]; // SPX, XRP, BNB и т.д.
+            const type = parts[2]; // TRADE, SETTLEMENT, LIQUIDATION и т.д.
+            const direction = parts[3]; // Buy или Sell
+            const quantity = parseFloat(parts[4]);
+            const price = parseFloat(parts[6]);
+            
+            // Нас интересуют только спот-покупки (где Currency - монета, не USDT)
+            if (currency !== 'USDT' && type === 'TRADE' && direction === 'Buy' && quantity > 0 && price > 0) {
                 
-                // Разделяем по запятой
-                const parts = line.split(',');
-                if (parts.length < 10) continue;
-                
-                const currency = parts[0]; // USDT или монета
-                const contract = parts[1]; // например BTCUSDT
-                const type = parts[2]; // TRADE, LIQUIDATION и т.д.
-                const direction = parts[3]; // Buy или Sell
-                const quantity = parseFloat(parts[4]); // количество
-                const price = parseFloat(parts[6]); // цена
-                
-                // Нас интересуют только спот-покупки (где Currency - это монета, а не USDT)
-                if (currency !== 'USDT' && type === 'TRADE' && direction === 'Buy' && quantity > 0 && price > 0) {
-                    
-                    // Проверяем что это не фьючерсы (если есть Contract, то берем из него монету)
-                    let coin = currency;
-                    if (contract && contract.includes('USDT')) {
-                        coin = contract.replace('USDT', '');
-                    }
-                    
-                    // Агрегируем по монетам
-                    if (!coinAmounts[coin]) {
-                        coinAmounts[coin] = {
-                            totalAmount: 0,
-                            totalValue: 0,
-                            transactions: []
-                        };
-                    }
-                    
-                    coinAmounts[coin].totalAmount += quantity;
-                    coinAmounts[coin].totalValue += quantity * price;
-                    coinAmounts[coin].transactions.push({
-                        amount: quantity,
-                        price: price,
-                        date: parts[14] || new Date().toISOString()
-                    });
-                    
-                    console.log(`✅ Найдена покупка: ${coin} ${quantity} по $${price}`);
+                // Агрегируем по монетам
+                if (!coinAmounts[currency]) {
+                    coinAmounts[currency] = {
+                        totalAmount: 0,
+                        totalValue: 0,
+                        count: 0
+                    };
                 }
-            }
-            
-            // Преобразуем агрегированные данные в транзакции
-            for (const [coin, data] of Object.entries(coinAmounts)) {
-                const avgPrice = data.totalValue / data.totalAmount;
-                transactions.push({
-                    coin: coin,
-                    amount: data.totalAmount,
-                    price: avgPrice,
-                    transactions: data.transactions.length,
-                    type: 'buy'
-                });
-            }
-        }
-        
-        // Парсим Binance CSV
-        if (exchange === 'binance') {
-            // Аналогичная логика для Binance
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
                 
-                const parts = line.split(',');
-                // ... логика для Binance
+                coinAmounts[currency].totalAmount += quantity;
+                coinAmounts[currency].totalValue += quantity * price;
+                coinAmounts[currency].count++;
             }
         }
+
+        const endTime = Date.now();
+        console.log(`✅ Обработано ${lineCount} строк за ${(endTime - startTime) / 1000} секунд`);
+        console.log('📊 Найдено монет:', Object.keys(coinAmounts).length);
         
-        console.log(`📊 Найдено уникальных монет: ${transactions.length}`);
-        console.log('📦 Итоговые позиции:', transactions);
+        // Преобразуем агрегированные данные в транзакции
+        for (const [coin, data] of Object.entries(coinAmounts)) {
+            const avgPrice = data.totalValue / data.totalAmount;
+            transactions.push({
+                coin: coin,
+                amount: data.totalAmount,
+                price: avgPrice,
+                count: data.count,
+                type: 'buy'
+            });
+        }
+        
+        // Сортируем по количеству транзакций
+        transactions.sort((a, b) => b.count - a.count);
+        
+        console.log(`📦 Найдено уникальных монет: ${transactions.length}`);
+        console.log('📈 Топ-5 монет по количеству покупок:', transactions.slice(0, 5).map(t => 
+            `${t.coin}: ${t.amount.toFixed(2)} шт. (${t.count} покупок)`
+        ));
         
         res.json({ 
             success: true, 
             transactions: transactions,
             count: transactions.length,
-            coins: Object.keys(coinAmounts)
+            processed: lineCount,
+            totalLines: lines.length,
+            time: `${(endTime - startTime) / 1000} сек`
         });
         
     } catch (error) {
