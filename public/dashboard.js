@@ -1,17 +1,18 @@
 // ===== Класс портфеля =====
 class Portfolio {
-    constructor() {
-        this.assets = [];
-        this.prices = {};
-        this.freeUSDT = parseFloat(localStorage.getItem('freeUSDT')) || 0;
-        this.activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
-        this.chartPeriod = localStorage.getItem('chartPeriod') || '1m';
-        this.portfolioChart = null;
-        this.categoryChart = null;
-        this.load();
-        this.startPriceUpdate();
-        setTimeout(() => this.initCharts(), 500);
-    }
+constructor() {
+    this.assets = [];
+    this.prices = {};
+    this.priceCache = {}; // Добавить эту строку
+    this.freeUSDT = parseFloat(localStorage.getItem('freeUSDT')) || 0;
+    this.activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
+    this.chartPeriod = localStorage.getItem('chartPeriod') || '1m';
+    this.portfolioChart = null;
+    this.categoryChart = null;
+    this.load();
+    this.startPriceUpdate();
+    setTimeout(() => this.initCharts(), 500);
+}
 
     load() {
         const saved = localStorage.getItem('portfolio');
@@ -86,36 +87,89 @@ class Portfolio {
         this.save();
     }
 
-    async updatePrices() {
-        for (const asset of this.assets) {
-            // Пробуем Binance
+async updatePrices() {
+    const now = Date.now();
+    
+    for (const asset of this.assets) {
+        const coin = asset.coin;
+        
+        // Если цена обновлялась меньше минуты назад, пропускаем
+        if (this.priceCache && this.priceCache[coin] && (now - this.priceCache[coin].timestamp < 60000)) {
+            this.prices[coin] = this.priceCache[coin].price;
+            continue;
+        }
+        
+        let price = 0;
+        
+        // Массив API для последовательного опроса
+        const apis = [
+            {
+                url: `https://api.binance.com/api/v3/ticker/price?symbol=${coin}USDT`,
+                parser: (data) => parseFloat(data.price)
+            },
+            {
+                url: `https://api.bybit.com/v5/market/tickers?category=spot&symbol=${coin}USDT`,
+                parser: (data) => data.result?.list?.[0]?.lastPrice ? parseFloat(data.result.list[0].lastPrice) : 0
+            },
+            {
+                url: `https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=${coin}-USDT`,
+                parser: (data) => data.data?.price ? parseFloat(data.data.price) : 0
+            }
+        ];
+        
+        // Пробуем все API по очереди
+        for (const api of apis) {
             try {
-                const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset.coin}USDT`);
+                const response = await fetch(api.url);
                 if (response.ok) {
                     const data = await response.json();
-                    this.prices[asset.coin] = parseFloat(data.price);
-                    continue;
-                }
-            } catch (e) {}
-
-            // Пробуем CoinGecko
-            try {
-                const coinLower = asset.coin.toLowerCase();
-                const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinLower}&vs_currencies=usd`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data[coinLower]?.usd) {
-                        this.prices[asset.coin] = data[coinLower].usd;
-                        continue;
+                    price = api.parser(data);
+                    if (price > 0) {
+                        break;
                     }
                 }
-            } catch (e) {}
-
-            // Если не нашли, ставим 0
-            this.prices[asset.coin] = 0;
+            } catch (e) {
+                continue;
+            }
         }
-        this.render();
+        
+        // Если не нашли через стандартные API, пробуем CoinGecko
+        if (price === 0) {
+            const specialCoins = {
+                'HYPE': 'hyperliquid',
+                'SPX': 'spx6900',
+                'PEPE': 'pepe',
+                'WIF': 'dogwifcoin',
+                'JUP': 'jupiter',
+                'RNDR': 'render',
+                'ONDO': 'ondo-finance',
+                'STRK': 'starknet',
+                'ARB': 'arbitrum',
+                'OP': 'optimism'
+            };
+
+            const geckoId = specialCoins[coin] || coin.toLowerCase();
+            
+            try {
+                const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${geckoId}&vs_currencies=usd`);
+                if (response.ok) {
+                    const data = await response.json();
+                    price = data[geckoId]?.usd || 0;
+                }
+            } catch (e) {}
+        }
+        
+        // Сохраняем в кэш
+        if (!this.priceCache) this.priceCache = {};
+        this.priceCache[coin] = {
+            price: price,
+            timestamp: now
+        };
+        
+        this.prices[coin] = price;
     }
+    this.render();
+}
 
     startPriceUpdate() {
         this.updatePrices();
