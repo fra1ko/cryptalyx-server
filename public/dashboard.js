@@ -279,139 +279,182 @@ async updatePrices() {
         this.updateCharts();
     }
 
-    updateCharts() {
-        const stats = this.getStats();
+updateCharts() {
+    const stats = this.getStats();
+    
+    // График истории портфеля
+    const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
+    if (portfolioCtx) {
+        // Уничтожаем предыдущий график если есть
+        if (this.portfolioChart) {
+            this.portfolioChart.destroy();
+        }
         
-        // График истории портфеля
-        const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
-        if (portfolioCtx) {
-            // Уничтожаем предыдущий график если есть
-            if (this.portfolioChart) {
-                this.portfolioChart.destroy();
+        const dates = [];
+        const values = [];
+        
+        let days = 30;
+        let interval = 1;
+        let format = 'short';
+        
+        if (this.chartPeriod === '1d') {
+            days = 1;
+            interval = 1;
+            format = 'hour';
+            // Для 1 дня показываем часы
+            for (let i = 24; i >= 0; i--) {
+                const date = new Date();
+                date.setHours(date.getHours() - i);
+                dates.push(date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+                values.push(stats.totalPortfolioValue * (0.99 + Math.random() * 0.02));
             }
-            
-            const dates = [];
-            const values = [];
-            
-            let days = 30;
-            if (this.chartPeriod === '1d') days = 1;
-            if (this.chartPeriod === '1w') days = 7;
-            if (this.chartPeriod === '1m') days = 30;
-            if (this.chartPeriod === '1y') days = 365;
-            
+        } else if (this.chartPeriod === '1w') {
+            days = 7;
+            interval = 1;
             for (let i = days; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);
                 dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
-                
-                // Генерируем историю на основе текущего портфеля
-                const randomFactor = 0.95 + Math.random() * 0.1;
-                values.push(stats.totalPortfolioValue * randomFactor);
+                values.push(stats.totalPortfolioValue * (0.97 + Math.random() * 0.06));
             }
-            
-            this.portfolioChart = new Chart(portfolioCtx, {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [{
-                        label: 'Стоимость портфеля (USDT)',
-                        data: values,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
+        } else if (this.chartPeriod === '1m') {
+            days = 30;
+            interval = 1;
+            for (let i = days; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                values.push(stats.totalPortfolioValue * (0.95 + Math.random() * 0.1));
+            }
+        } else if (this.chartPeriod === '1y') {
+            days = 365;
+            interval = 7; // Показываем каждую неделю
+            for (let i = days; i >= 0; i -= interval) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                values.push(stats.totalPortfolioValue * (0.85 + Math.random() * 0.3));
+            }
+        }
+        
+        this.portfolioChart = new Chart(portfolioCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Стоимость портфеля (USDT)',
+                    data: values,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.2,
+                    fill: true,
+                    pointRadius: this.chartPeriod === '1d' ? 2 : 1,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            grid: { color: '#334155' },
-                            ticks: { color: '#94a3b8' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#94a3b8' }
+                scales: {
+                    y: {
+                        grid: { color: '#334155' },
+                        ticks: { 
+                            color: '#94a3b8',
+                            callback: function(value) {
+                                return '$' + value.toFixed(0);
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { 
+                            color: '#94a3b8',
+                            maxTicksLimit: this.chartPeriod === '1y' ? 12 : 8
                         }
                     }
                 }
-            });
+            }
+        });
+    }
+
+    // График распределения по категориям
+    const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
+    if (categoryCtx) {
+        if (this.categoryChart) {
+            this.categoryChart.destroy();
         }
-
-        // График распределения по категориям
-        const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
-        if (categoryCtx) {
-            // Уничтожаем предыдущий график если есть
-            if (this.categoryChart) {
-                this.categoryChart.destroy();
-            }
+        
+        const categories = {
+            'L1': ['BTC', 'ETH', 'SOL', 'BNB'],
+            'L2': ['MATIC', 'ARB', 'OP'],
+            'DeFi': ['UNI', 'AAVE', 'LINK'],
+            'Meme': ['DOGE', 'SHIB', 'PEPE']
+        };
+        
+        const categoryData = {};
+        const categoryColors = {
+            'L1': '#3b82f6',
+            'L2': '#8b5cf6',
+            'DeFi': '#ec4899',
+            'Meme': '#f59e0b',
+            'Other': '#64748b'
+        };
+        
+        this.assets.forEach(asset => {
+            const value = asset.amount * (this.prices[asset.coin] || 0);
             
-            const categories = {
-                'L1': ['BTC', 'ETH', 'SOL', 'BNB'],
-                'L2': ['MATIC', 'ARB', 'OP'],
-                'DeFi': ['UNI', 'AAVE', 'LINK'],
-                'Meme': ['DOGE', 'SHIB', 'PEPE']
-            };
-            
-            const categoryData = {};
-            const categoryColors = {
-                'L1': '#3b82f6',
-                'L2': '#8b5cf6',
-                'DeFi': '#ec4899',
-                'Meme': '#f59e0b',
-                'Other': '#64748b'
-            };
-            
-            this.assets.forEach(asset => {
-                const value = asset.amount * (this.prices[asset.coin] || 0);
-                
-                let category = 'Other';
-                for (const [cat, coins] of Object.entries(categories)) {
-                    if (coins.includes(asset.coin)) {
-                        category = cat;
-                        break;
-                    }
+            let category = 'Other';
+            for (const [cat, coins] of Object.entries(categories)) {
+                if (coins.includes(asset.coin)) {
+                    category = cat;
+                    break;
                 }
-                
-                categoryData[category] = (categoryData[category] || 0) + value;
-            });
-            
-            // Если нет данных, показываем заглушку
-            if (Object.keys(categoryData).length === 0) {
-                categoryData['Нет данных'] = 1;
             }
             
-            this.categoryChart = new Chart(categoryCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(categoryData),
-                    datasets: [{
-                        data: Object.values(categoryData),
-                        backgroundColor: Object.keys(categoryData).map(cat => categoryColors[cat] || '#64748b'),
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
+            categoryData[category] = (categoryData[category] || 0) + value;
+        });
+        
+        // Если нет данных, показываем заглушку
+        if (Object.keys(categoryData).length === 0) {
+            categoryData['Нет данных'] = 1;
+        }
+        
+        this.categoryChart = new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(categoryData),
+                datasets: [{
+                    data: Object.values(categoryData),
+                    backgroundColor: Object.keys(categoryData).map(cat => categoryColors[cat] || '#64748b'),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: { enabled: true }
                 }
-            });
-
-            // Легенда
-            const legend = document.getElementById('categoryLegend');
-            if (legend) {
-                legend.innerHTML = Object.keys(categoryData).map(cat => `
-                    <div class="legend-item">
-                        <span class="legend-color" style="background: ${categoryColors[cat] || '#64748b'};"></span>
-                        <span>${cat}</span>
-                    </div>
-                `).join('');
             }
+        });
+
+        // Легенда
+        const legend = document.getElementById('categoryLegend');
+        if (legend) {
+            legend.innerHTML = Object.keys(categoryData).map(cat => `
+                <div class="legend-item">
+                    <span class="legend-color" style="background: ${categoryColors[cat] || '#64748b'};"></span>
+                    <span>${cat}</span>
+                </div>
+            `).join('');
         }
     }
+}
 
     render() {
         const stats = this.getStats();
