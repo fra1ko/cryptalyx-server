@@ -246,54 +246,87 @@ app.post('/api/import/csv', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'Файл не загружен' });
         }
         
+        console.log('📥 Импорт CSV:', exchange, req.file.path);
+        
         fs.createReadStream(req.file.path)
-            .pipe(csv())
-            .on('data', (data) => results.push(data))
+            .pipe(csv({
+                separator: ',',
+                mapHeaders: ({ header }) => header.trim(),
+                mapValues: ({ value }) => value.trim()
+            }))
+            .on('data', (data) => {
+                console.log('Строка CSV:', data);
+                results.push(data);
+            })
             .on('end', async () => {
                 // Удаляем временный файл
                 try {
                     fs.unlinkSync(req.file.path);
                 } catch (e) {}
-                
+
                 const transactions = [];
                 
-                // Парсим в зависимости от биржи
+                // Парсим Bybit CSV
                 if (exchange === 'bybit') {
                     results.forEach(row => {
-                        if (row.Symbol && row.Price && row.Executed) {
-                            transactions.push({
-                                coin: row.Symbol.replace('USDT', ''),
-                                amount: parseFloat(row.Executed),
-                                price: parseFloat(row.Price),
-                                date: row.Time || new Date().toISOString(),
-                                type: row.Side === 'Buy' ? 'buy' : 'sell'
-                            });
-                        }
-                    });
-                } else if (exchange === 'binance') {
-                    results.forEach(row => {
-                        if (row.币种 || row.Coin) {
-                            const coin = row.币种 || row.Coin;
-                            transactions.push({
-                                coin: coin.replace('USDT', ''),
-                                amount: parseFloat(row.数量 || row.Amount),
-                                price: parseFloat(row.价格 || row.Price),
-                                date: row.时间 || row.Time,
-                                type: 'buy'
-                            });
+                        // Проверяем что это spot сделка
+                        if (row.Currency === 'USDT' && row.Type === 'TRADE') {
+                            const symbol = row.Contract; // например "BTCUSDT"
+                            const side = row.Direction; // "Buy" или "Sell"
+                            const quantity = parseFloat(row.Quantity);
+                            const price = parseFloat(row['Filled Price']);
+                            
+                            // Извлекаем монету (убираем USDT)
+                            const coin = symbol.replace('USDT', '');
+                            
+                            // Учитываем только покупки (для портфеля)
+                            if (side === 'Buy' && quantity > 0 && price > 0) {
+                                transactions.push({
+                                    coin: coin,
+                                    amount: quantity,
+                                    price: price,
+                                    date: row.Time,
+                                    type: 'buy'
+                                });
+                                console.log(`✅ Найдена покупка: ${coin} ${quantity} по $${price}`);
+                            }
                         }
                     });
                 }
                 
+                // Парсим Binance CSV
+                if (exchange === 'binance') {
+                    results.forEach(row => {
+                        if (row.操作 === '买入' || row.Operation === 'Buy') {
+                            const coin = (row.币种 || row.Coin).replace('USDT', '');
+                            const amount = parseFloat(row.数量 || row.Amount);
+                            const price = parseFloat(row.价格 || row.Price);
+                            
+                            if (amount > 0 && price > 0) {
+                                transactions.push({
+                                    coin: coin,
+                                    amount: amount,
+                                    price: price,
+                                    date: row.时间 || row.Time,
+                                    type: 'buy'
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                console.log(`📊 Найдено транзакций: ${transactions.length}`);
+                
                 res.json({ 
                     success: true, 
                     transactions: transactions,
-                    count: transactions.length 
+                    count: transactions.length,
+                    debug: { rows: results.length, exchange: exchange }
                 });
             });
     } catch (error) {
-        console.error('CSV import error:', error);
-        res.status(500).json({ error: 'Ошибка импорта CSV' });
+        console.error('❌ CSV import error:', error);
+        res.status(500).json({ error: 'Ошибка импорта CSV: ' + error.message });
     }
 });
 

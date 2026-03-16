@@ -777,9 +777,15 @@ async function importCSV() {
     const exchange = document.getElementById('exchangeSelect').value;
     
     if (!fileInput.files[0]) {
-        alert('Выберите CSV файл');
+        showMessage('Выберите CSV файл', 'error');
         return;
     }
+    
+    // Показываем загрузку
+    const importBtn = document.querySelector('.import-section .action-btn');
+    const originalText = importBtn.textContent;
+    importBtn.textContent = '⏳ Загрузка...';
+    importBtn.disabled = true;
     
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
@@ -792,29 +798,80 @@ async function importCSV() {
         });
         
         const data = await response.json();
+        console.log('Ответ сервера:', data);
         
         if (data.success) {
             window.importedTransactions = data.transactions;
             document.getElementById('importCount').textContent = data.count;
-            document.getElementById('importPreview').style.display = 'block';
+            
+            if (data.count > 0) {
+                document.getElementById('importPreview').style.display = 'block';
+                
+                // Показываем первую транзакцию для примера
+                const firstTx = data.transactions[0];
+                showMessage(`✅ Найдено ${data.count} покупок. Пример: ${firstTx.coin} ${firstTx.amount} по $${firstTx.price}`, 'success');
+            } else {
+                showMessage('❌ Не найдено покупок в CSV', 'error');
+            }
+        } else {
+            showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }
     } catch (error) {
-        alert('Ошибка импорта: ' + error.message);
+        console.error('Ошибка импорта:', error);
+        showMessage('❌ Ошибка соединения: ' + error.message, 'error');
+    } finally {
+        importBtn.textContent = originalText;
+        importBtn.disabled = false;
     }
 }
 
-function confirmImport() {
-    if (!window.importedTransactions) return;
+function showMessage(text, type) {
+    // Убираем старые сообщения
+    const oldMsg = document.querySelector('.import-message');
+    if (oldMsg) oldMsg.remove();
     
+    const msg = document.createElement('div');
+    msg.className = type === 'success' ? 'import-success' : 'import-error';
+    msg.style.marginTop = '1rem';
+    msg.style.padding = '0.75rem 1rem';
+    msg.style.borderRadius = '0.5rem';
+    msg.style.backgroundColor = type === 'success' ? '#0a2f1f' : '#450a0a';
+    msg.style.color = type === 'success' ? '#4ade80' : '#f87171';
+    msg.style.border = type === 'success' ? '1px solid #15803d' : '1px solid #991b1b';
+    msg.innerHTML = `
+        <span style="margin-right: 0.5rem;">${type === 'success' ? '✅' : '❌'}</span>
+        <span>${text}</span>
+    `;
+    
+    const importSection = document.querySelector('.import-section');
+    importSection.appendChild(msg);
+    
+    setTimeout(() => msg.remove(), 5000);
+}
+
+function confirmImport() {
+    if (!window.importedTransactions || window.importedTransactions.length === 0) {
+        showMessage('Нет транзакций для импорта', 'error');
+        return;
+    }
+    
+    let added = 0;
     window.importedTransactions.forEach(t => {
-        if (t.type === 'buy') {
-            portfolio.addAsset(t.coin, t.amount, t.price);
-        }
+        portfolio.addAsset(t.coin, t.amount, t.price);
+        added++;
     });
     
     document.getElementById('importPreview').style.display = 'none';
     document.getElementById('csvFile').value = '';
-    alert('Импорт завершен!');
+    showMessage(`✅ Добавлено ${added} позиций в портфель`, 'success');
+    window.importedTransactions = null;
+}
+
+function cancelImport() {
+    document.getElementById('importPreview').style.display = 'none';
+    document.getElementById('csvFile').value = '';
+    window.importedTransactions = null;
+    showMessage('Импорт отменен', 'info');
 }
 
 window.importCSV = importCSV;
