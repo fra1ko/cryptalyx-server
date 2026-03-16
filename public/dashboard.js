@@ -6,6 +6,8 @@ class Portfolio {
         this.freeUSDT = parseFloat(localStorage.getItem('freeUSDT')) || 0;
         this.activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
         this.chartPeriod = localStorage.getItem('chartPeriod') || '1m';
+        this.portfolioChart = null;
+        this.categoryChart = null;
         this.load();
         this.startPriceUpdate();
         setTimeout(() => this.initCharts(), 500);
@@ -229,8 +231,10 @@ class Portfolio {
         // График истории портфеля
         const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
         if (portfolioCtx) {
-            // Очищаем предыдущий график
-            if (window.portfolioChart) window.portfolioChart.destroy();
+            // Уничтожаем предыдущий график если есть
+            if (this.portfolioChart) {
+                this.portfolioChart.destroy();
+            }
             
             const dates = [];
             const values = [];
@@ -251,7 +255,7 @@ class Portfolio {
                 values.push(stats.totalPortfolioValue * randomFactor);
             }
             
-            window.portfolioChart = new Chart(portfolioCtx, {
+            this.portfolioChart = new Chart(portfolioCtx, {
                 type: 'line',
                 data: {
                     labels: dates,
@@ -285,8 +289,10 @@ class Portfolio {
         // График распределения по категориям
         const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
         if (categoryCtx) {
-            // Очищаем предыдущий график
-            if (window.categoryChart) window.categoryChart.destroy();
+            // Уничтожаем предыдущий график если есть
+            if (this.categoryChart) {
+                this.categoryChart.destroy();
+            }
             
             const categories = {
                 'L1': ['BTC', 'ETH', 'SOL', 'BNB'],
@@ -304,11 +310,8 @@ class Portfolio {
                 'Other': '#64748b'
             };
             
-            let totalValue = 0;
-            
             this.assets.forEach(asset => {
                 const value = asset.amount * (this.prices[asset.coin] || 0);
-                totalValue += value;
                 
                 let category = 'Other';
                 for (const [cat, coins] of Object.entries(categories)) {
@@ -326,7 +329,7 @@ class Portfolio {
                 categoryData['Нет данных'] = 1;
             }
             
-            window.categoryChart = new Chart(categoryCtx, {
+            this.categoryChart = new Chart(categoryCtx, {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(categoryData),
@@ -363,48 +366,66 @@ class Portfolio {
         const riskScore = this.getRiskScore();
         
         // Основные метрики
-        document.getElementById('totalPortfolioValue').textContent = `$${stats.totalPortfolioValue.toFixed(2)}`;
-        document.getElementById('totalBuyValue').textContent = `$${stats.totalBuyValue.toFixed(2)}`;
-        document.getElementById('totalCurrentValue').textContent = `$${stats.totalCurrentValue.toFixed(2)}`;
-        document.getElementById('freeUsdtValue').textContent = `${this.freeUSDT.toFixed(2)} USDT`;
-        
+        const totalPortfolioEl = document.getElementById('totalPortfolioValue');
+        const totalBuyEl = document.getElementById('totalBuyValue');
+        const totalCurrentEl = document.getElementById('totalCurrentValue');
+        const freeUsdtEl = document.getElementById('freeUsdtValue');
         const profitEl = document.getElementById('profit');
-        profitEl.textContent = `$${stats.profit.toFixed(2)} (${stats.profitPercent.toFixed(2)}%)`;
-        profitEl.className = stats.profit >= 0 ? 'positive' : 'negative';
+        const bestAssetEl = document.getElementById('bestAsset');
+        const bestAssetProfitEl = document.getElementById('bestAssetProfit');
+        const worstAssetEl = document.getElementById('worstAsset');
+        const worstAssetProfitEl = document.getElementById('worstAssetProfit');
+        const diversificationScoreEl = document.getElementById('diversificationScore');
+        const diversificationLevelEl = document.getElementById('diversificationLevel');
+        const riskScoreEl = document.getElementById('riskScore');
+        const riskLevelEl = document.getElementById('riskLevel');
+        const currentDateEl = document.getElementById('currentDate');
         
-        // Лучший/худший актив
-        if (bestWorst.bestAsset) {
-            document.getElementById('bestAsset').textContent = bestWorst.bestAsset.coin;
-            document.getElementById('bestAssetProfit').textContent = `+${bestWorst.bestProfit.toFixed(1)}%`;
-            document.getElementById('bestAssetProfit').className = 'positive';
-        } else {
-            document.getElementById('bestAsset').textContent = '—';
-            document.getElementById('bestAssetProfit').textContent = '';
+        if (totalPortfolioEl) totalPortfolioEl.textContent = `$${stats.totalPortfolioValue.toFixed(2)}`;
+        if (totalBuyEl) totalBuyEl.textContent = `$${stats.totalBuyValue.toFixed(2)}`;
+        if (totalCurrentEl) totalCurrentEl.textContent = `$${stats.totalCurrentValue.toFixed(2)}`;
+        if (freeUsdtEl) freeUsdtEl.textContent = `${this.freeUSDT.toFixed(2)} USDT`;
+        
+        if (profitEl) {
+            profitEl.textContent = `$${stats.profit.toFixed(2)} (${stats.profitPercent.toFixed(2)}%)`;
+            profitEl.className = stats.profit >= 0 ? 'positive' : 'negative';
         }
         
-        if (bestWorst.worstAsset) {
-            document.getElementById('worstAsset').textContent = bestWorst.worstAsset.coin;
-            document.getElementById('worstAssetProfit').textContent = `${bestWorst.worstProfit.toFixed(1)}%`;
-            document.getElementById('worstAssetProfit').className = 'negative';
+        // Лучший/худший актив
+        if (bestWorst.bestAsset && bestAssetEl && bestAssetProfitEl) {
+            bestAssetEl.textContent = bestWorst.bestAsset.coin;
+            bestAssetProfitEl.textContent = `${bestWorst.bestProfit >= 0 ? '+' : ''}${bestWorst.bestProfit.toFixed(1)}%`;
+            bestAssetProfitEl.className = bestWorst.bestProfit >= 0 ? 'positive' : 'negative';
         } else {
-            document.getElementById('worstAsset').textContent = '—';
-            document.getElementById('worstAssetProfit').textContent = '';
+            if (bestAssetEl) bestAssetEl.textContent = '—';
+            if (bestAssetProfitEl) bestAssetProfitEl.textContent = '';
+        }
+        
+        if (bestWorst.worstAsset && worstAssetEl && worstAssetProfitEl) {
+            worstAssetEl.textContent = bestWorst.worstAsset.coin;
+            worstAssetProfitEl.textContent = `${bestWorst.worstProfit >= 0 ? '+' : ''}${bestWorst.worstProfit.toFixed(1)}%`;
+            worstAssetProfitEl.className = bestWorst.worstProfit >= 0 ? 'positive' : 'negative';
+        } else {
+            if (worstAssetEl) worstAssetEl.textContent = '—';
+            if (worstAssetProfitEl) worstAssetProfitEl.textContent = '';
         }
         
         // Диверсификация
-        document.getElementById('diversificationScore').textContent = `${diversificationScore.toFixed(0)}%`;
-        document.getElementById('diversificationLevel').textContent = this.getDiversificationLevel(diversificationScore);
+        if (diversificationScoreEl) diversificationScoreEl.textContent = `${diversificationScore.toFixed(0)}%`;
+        if (diversificationLevelEl) diversificationLevelEl.textContent = this.getDiversificationLevel(diversificationScore);
         
         // Риск
-        document.getElementById('riskScore').textContent = `${riskScore}/10`;
-        document.getElementById('riskLevel').textContent = this.getRiskLevel(riskScore);
+        if (riskScoreEl) riskScoreEl.textContent = `${riskScore}/10`;
+        if (riskLevelEl) riskLevelEl.textContent = this.getRiskLevel(riskScore);
         
         // Дата
-        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        });
+        if (currentDateEl) {
+            currentDateEl.textContent = new Date().toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
         
         // Таблица портфеля
         const tbody = document.getElementById('portfolioBody');
@@ -412,7 +433,8 @@ class Portfolio {
         
         if (this.assets.length === 0) {
             tbody.innerHTML = '<tr><td colspan="9" class="empty-state">📭 Портфель пуст. Добавьте первую монету!</td></tr>';
-            document.getElementById('aiSection').style.display = 'none';
+            const aiSection = document.getElementById('aiSection');
+            if (aiSection) aiSection.style.display = 'none';
         } else {
             let rows = '';
 
@@ -442,7 +464,8 @@ class Portfolio {
             });
 
             tbody.innerHTML = rows;
-            document.getElementById('aiSection').style.display = 'block';
+            const aiSection = document.getElementById('aiSection');
+            if (aiSection) aiSection.style.display = 'block';
         }
         
         // Последние действия
@@ -502,7 +525,8 @@ class Portfolio {
         if (!aiDiv) return;
         
         if (this.assets.length === 0) {
-            document.getElementById('aiSection').style.display = 'none';
+            const aiSection = document.getElementById('aiSection');
+            if (aiSection) aiSection.style.display = 'none';
             return;
         }
         
@@ -587,8 +611,10 @@ function addAsset() {
 
 function updateFreeUSDT() {
     const value = parseFloat(document.getElementById('freeUsdtInput')?.value);
-    if (!isNaN(value)) {
+    if (!isNaN(value) && value >= 0) {
         portfolio.setFreeUSDT(value);
+    } else {
+        alert('Введите корректную сумму');
     }
 }
 
@@ -604,12 +630,14 @@ function refreshPrices() {
         btn.innerHTML = '<span class="refresh-icon">⏳</span> Обновление...';
     }
     
-    portfolio.updatePrices().finally(() => {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<span class="refresh-icon">🔄</span> Обновить цены';
-        }
-    });
+    if (portfolio) {
+        portfolio.updatePrices().finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="refresh-icon">🔄</span> Обновить цены';
+            }
+        });
+    }
 }
 
 function toggleMobileMenu() {
@@ -619,6 +647,8 @@ function toggleMobileMenu() {
 
 function scrollTable(direction) {
     const wrapper = document.getElementById('tableWrapper');
+    if (!wrapper) return;
+    
     const scrollAmount = 300;
     
     if (direction === 'left') {
@@ -631,6 +661,8 @@ function scrollTable(direction) {
 }
 
 function changeChartPeriod(period) {
+    if (!portfolio) return;
+    
     localStorage.setItem('chartPeriod', period);
     
     // Подсветка активной кнопки
@@ -659,9 +691,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!key) return;
 
     const plan = localStorage.getItem('plan') || 'basic';
-    document.getElementById('planBadge').textContent = plan === 'premium' ? 'PREMIUM' : 'BASIC';
+    const planBadge = document.getElementById('planBadge');
+    if (planBadge) {
+        planBadge.textContent = plan === 'premium' ? 'PREMIUM' : 'BASIC';
+    }
 
     portfolio = new Portfolio();
+    
+    // Делаем функции глобальными
     window.portfolio = portfolio;
     window.addAsset = addAsset;
     window.updateFreeUSDT = updateFreeUSDT;
@@ -673,6 +710,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Скрываем индикатор после прокрутки
-document.getElementById('tableWrapper')?.addEventListener('scroll', function() {
-    this.classList.add('scrolled');
-});
+const tableWrapper = document.getElementById('tableWrapper');
+if (tableWrapper) {
+    tableWrapper.addEventListener('scroll', function() {
+        this.classList.add('scrolled');
+    });
+}
