@@ -781,7 +781,8 @@ async function importCSV() {
         return;
     }
     
-    // Показываем загрузку
+    console.log('📤 Загрузка файла:', fileInput.files[0].name);
+    
     const importBtn = document.querySelector('.import-section .action-btn');
     const originalText = importBtn.textContent;
     importBtn.textContent = '⏳ Загрузка...';
@@ -798,7 +799,7 @@ async function importCSV() {
         });
         
         const data = await response.json();
-        console.log('Ответ сервера:', data);
+        console.log('📦 Ответ сервера:', data);
         
         if (data.success) {
             window.importedTransactions = data.transactions;
@@ -807,17 +808,18 @@ async function importCSV() {
             if (data.count > 0) {
                 document.getElementById('importPreview').style.display = 'block';
                 
-                // Показываем первую транзакцию для примера
-                const firstTx = data.transactions[0];
-                showMessage(`✅ Найдено ${data.count} покупок. Пример: ${firstTx.coin} ${firstTx.amount} по $${firstTx.price}`, 'success');
+                // Показываем первые 3 транзакции в консоли
+                console.log('📊 Первые 3 транзакции:', data.transactions.slice(0, 3));
+                
+                showMessage(`✅ Найдено ${data.count} покупок`, 'success');
             } else {
-                showMessage('❌ Не найдено покупок в CSV', 'error');
+                showMessage('❌ Не найдено спот-покупок в CSV', 'error');
             }
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }
     } catch (error) {
-        console.error('Ошибка импорта:', error);
+        console.error('❌ Ошибка импорта:', error);
         showMessage('❌ Ошибка соединения: ' + error.message, 'error');
     } finally {
         importBtn.textContent = originalText;

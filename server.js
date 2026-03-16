@@ -248,14 +248,17 @@ app.post('/api/import/csv', upload.single('file'), async (req, res) => {
         
         console.log('📥 Импорт CSV:', exchange, req.file.path);
         
-        fs.createReadStream(req.file.path)
+        fs.createReadStream(req.file.path, { encoding: 'utf8' })
             .pipe(csv({
-                separator: ',',
-                mapHeaders: ({ header }) => header.trim(),
-                mapValues: ({ value }) => value.trim()
+                separator: ';', // Bybit использует точку с запятой!
+                mapHeaders: ({ header }) => header.trim().replace(/^"/, '').replace(/"$/, ''),
+                mapValues: ({ value }) => value.trim().replace(/^"/, '').replace(/"$/, '')
             }))
             .on('data', (data) => {
-                console.log('Строка CSV:', data);
+                // Пропускаем пустые строки
+                if (Object.keys(data).length === 0) return;
+                
+                console.log('📄 Строка CSV:', data);
                 results.push(data);
             })
             .on('end', async () => {
@@ -268,48 +271,38 @@ app.post('/api/import/csv', upload.single('file'), async (req, res) => {
                 
                 // Парсим Bybit CSV
                 if (exchange === 'bybit') {
-                    results.forEach(row => {
-                        // Проверяем что это spot сделка
-                        if (row.Currency === 'USDT' && row.Type === 'TRADE') {
-                            const symbol = row.Contract; // например "BTCUSDT"
-                            const side = row.Direction; // "Buy" или "Sell"
-                            const quantity = parseFloat(row.Quantity);
-                            const price = parseFloat(row['Filled Price']);
+                    results.forEach((row, index) => {
+                        // Проверяем что это спот-сделка (Currency не USDT)
+                        const currency = row.Currency || row.currency || '';
+                        const type = row.Type || row.type || '';
+                        const direction = row.Direction || row.direction || '';
+                        
+                        // Нам нужны только строки где Currency - это монета (не USDT)
+                        if (currency !== 'USDT' && type === 'TRADE' && direction === 'Buy') {
                             
-                            // Извлекаем монету (убираем USDT)
-                            const coin = symbol.replace('USDT', '');
+                            const symbol = row.Contract || row.contract || '';
+                            const quantity = parseFloat((row.Quantity || row.quantity || '0').replace(',', '.'));
+                            const price = parseFloat((row['Filled Price'] || row.Filled_Price || row.filled_price || '0').replace(',', '.'));
                             
-                            // Учитываем только покупки (для портфеля)
-                            if (side === 'Buy' && quantity > 0 && price > 0) {
+                            // Проверяем что цена и количество > 0
+                            if (quantity > 0 && price > 0) {
+                                // Извлекаем монету (если есть Contract, используем его, иначе Currency)
+                                let coin = '';
+                                if (symbol.includes('USDT')) {
+                                    coin = symbol.replace('USDT', '');
+                                } else {
+                                    coin = currency;
+                                }
+                                
                                 transactions.push({
                                     coin: coin,
                                     amount: quantity,
                                     price: price,
-                                    date: row.Time,
+                                    date: row.Time || row.time || new Date().toISOString(),
                                     type: 'buy'
                                 });
+                                
                                 console.log(`✅ Найдена покупка: ${coin} ${quantity} по $${price}`);
-                            }
-                        }
-                    });
-                }
-                
-                // Парсим Binance CSV
-                if (exchange === 'binance') {
-                    results.forEach(row => {
-                        if (row.操作 === '买入' || row.Operation === 'Buy') {
-                            const coin = (row.币种 || row.Coin).replace('USDT', '');
-                            const amount = parseFloat(row.数量 || row.Amount);
-                            const price = parseFloat(row.价格 || row.Price);
-                            
-                            if (amount > 0 && price > 0) {
-                                transactions.push({
-                                    coin: coin,
-                                    amount: amount,
-                                    price: price,
-                                    date: row.时间 || row.Time,
-                                    type: 'buy'
-                                });
                             }
                         }
                     });
@@ -321,7 +314,11 @@ app.post('/api/import/csv', upload.single('file'), async (req, res) => {
                     success: true, 
                     transactions: transactions,
                     count: transactions.length,
-                    debug: { rows: results.length, exchange: exchange }
+                    debug: { 
+                        rows: results.length, 
+                        exchange: exchange,
+                        firstRow: results[0] || null
+                    }
                 });
             });
     } catch (error) {
