@@ -3,26 +3,76 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
-const fs = require('fs');
-const FormData = require('form-data');
-const axios = require('axios');
+const fs = require('fs'); // ← ОДИН РАЗ!
+const path = require('path');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
+const FormData = require('form-data');
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
 const csv = require('csv-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ===== Базовый путь к проекту =====
+const BASE_PATH = __dirname;
+const ADMIN_PATH = path.join(BASE_PATH, 'admin');
+const PUBLIC_PATH = path.join(BASE_PATH, 'public');
+
+console.log('📁 Базовая папка:', BASE_PATH);
+console.log('📁 Admin папка:', ADMIN_PATH);
+console.log('📁 Public папка:', PUBLIC_PATH);
+
+// Проверяем наличие файлов в public
+try {
+    const files = fs.readdirSync(PUBLIC_PATH);
+    console.log('📁 Файлы в public:', files);
+} catch (err) {
+    console.log('📁 Создаю папку public...');
+    fs.mkdirSync(PUBLIC_PATH, { recursive: true });
+}
 
 // ===== Подключаем Supabase =====
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// ===== Middleware =====
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
-app.use('/admin', express.static('admin'));
+
+// Отключаем CSP для разработки
+app.use((req, res, next) => {
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('X-Content-Security-Policy');
+    res.removeHeader('X-WebKit-CSP');
+    next();
+});
+
+// ===== СТАТИЧЕСКИЕ ФАЙЛЫ =====
+app.use(express.static(PUBLIC_PATH));
+app.use('/admin', express.static(ADMIN_PATH));
+
+// ===== КРАСИВЫЕ URL (без .html) =====
+app.get('/', (req, res) => {
+    res.sendFile(path.join(PUBLIC_PATH, 'index.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(PUBLIC_PATH, 'login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(PUBLIC_PATH, 'dashboard.html'));
+});
+
+app.get('/check', (req, res) => {
+    res.sendFile(path.join(PUBLIC_PATH, 'check.html'));
+});
+
+app.get('/download', (req, res) => {
+    res.sendFile(path.join(PUBLIC_PATH, 'download.html'));
+});
 
 // ===== Функция для генерации лицензионного ключа =====
 function generateLicenseKey() {
@@ -84,7 +134,7 @@ async function createNowPaymentsPayment(amountUSD, orderId, description) {
         pay_currency: 'usdttrc20',
         order_id: orderId,
         order_description: description,
-        ipn_callback_url: `https://sensitometrically-numinous-kristyn.ngrok-free.dev/api/nowpayments-webhook`,
+        ipn_callback_url: `https://${process.env.RENDER_EXTERNAL_URL || 'localhost:3001'}/api/nowpayments-webhook`,
         success_url: 'https://t.me/cryptalyx_official_bot',
         cancel_url: 'https://t.me/cryptalyx_official_bot',
         is_fixed_rate: true,
@@ -119,6 +169,132 @@ app.get('/api/health', (req, res) => {
         message: 'Cryptalyx backend работает 🚀',
         timestamp: new Date().toISOString()
     });
+});
+
+// ===== Эндпоинт для получения цены монеты (прокси) =====
+app.get('/api/price/:coin', async (req, res) => {
+    const coin = req.params.coin.toUpperCase();
+    
+    const specialCoins = {
+        'HYPE': 'hyperliquid',
+        'SPX': 'spx6900',
+        'PEPE': 'pepe',
+        'WIF': 'dogwifcoin',
+        'JUP': 'jupiter',
+        'RNDR': 'render',
+        'ONDO': 'ondo-finance',
+        'STRK': 'starknet',
+        'ARB': 'arbitrum',
+        'OP': 'optimism'
+    };
+    
+    try {
+        // Пробуем Binance
+        const binanceRes = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${coin}USDT`);
+        if (binanceRes.ok) {
+            const data = await binanceRes.json();
+            return res.json({ price: parseFloat(data.price), source: 'binance' });
+        }
+    } catch (e) {}
+    
+    try {
+        // Пробуем Bybit
+        const bybitRes = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${coin}USDT`);
+        if (bybitRes.ok) {
+            const data = await bybitRes.json();
+            if (data.result?.list?.[0]?.lastPrice) {
+                return res.json({ price: parseFloat(data.result.list[0].lastPrice), source: 'bybit' });
+            }
+        }
+    } catch (e) {}
+    
+    try {
+        // Пробуем KuCoin
+        const kucoinRes = await fetch(`https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=${coin}-USDT`);
+        if (kucoinRes.ok) {
+            const data = await kucoinRes.json();
+            if (data.data?.price) {
+                return res.json({ price: parseFloat(data.data.price), source: 'kucoin' });
+            }
+        }
+    } catch (e) {}
+    
+    try {
+        // Пробуем CoinGecko
+        const geckoId = specialCoins[coin] || coin.toLowerCase();
+        const geckoRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${geckoId}&vs_currencies=usd`);
+        if (geckoRes.ok) {
+            const data = await geckoRes.json();
+            if (data[geckoId]?.usd) {
+                return res.json({ price: data[geckoId].usd, source: 'coingecko' });
+            }
+        }
+    } catch (e) {}
+    
+    res.json({ price: 0, source: 'none' });
+});
+
+// ===== ИМПОРТ CSV =====
+const upload = multer({ dest: '/tmp/uploads/' });
+
+app.post('/api/import/csv', upload.single('file'), async (req, res) => {
+    try {
+        const results = [];
+        const { exchange } = req.body;
+        
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не загружен' });
+        }
+        
+        fs.createReadStream(req.file.path)
+            .pipe(csv())
+            .on('data', (data) => results.push(data))
+            .on('end', async () => {
+                // Удаляем временный файл
+                try {
+                    fs.unlinkSync(req.file.path);
+                } catch (e) {}
+                
+                const transactions = [];
+                
+                // Парсим в зависимости от биржи
+                if (exchange === 'bybit') {
+                    results.forEach(row => {
+                        if (row.Symbol && row.Price && row.Executed) {
+                            transactions.push({
+                                coin: row.Symbol.replace('USDT', ''),
+                                amount: parseFloat(row.Executed),
+                                price: parseFloat(row.Price),
+                                date: row.Time || new Date().toISOString(),
+                                type: row.Side === 'Buy' ? 'buy' : 'sell'
+                            });
+                        }
+                    });
+                } else if (exchange === 'binance') {
+                    results.forEach(row => {
+                        if (row.币种 || row.Coin) {
+                            const coin = row.币种 || row.Coin;
+                            transactions.push({
+                                coin: coin.replace('USDT', ''),
+                                amount: parseFloat(row.数量 || row.Amount),
+                                price: parseFloat(row.价格 || row.Price),
+                                date: row.时间 || row.Time,
+                                type: 'buy'
+                            });
+                        }
+                    });
+                }
+                
+                res.json({ 
+                    success: true, 
+                    transactions: transactions,
+                    count: transactions.length 
+                });
+            });
+    } catch (error) {
+        console.error('CSV import error:', error);
+        res.status(500).json({ error: 'Ошибка импорта CSV' });
+    }
 });
 
 // ===== Эндпоинт для создания заказа (ЮKassa) =====
@@ -379,7 +555,7 @@ app.post('/api/payment-webhook', async (req, res) => {
 
             const { data: user, error: userError } = await supabase
                 .from('users')
-                .select('id, email, login')
+                .select('id, email, login, telegram_id')
                 .eq('telegram_id', metadata.telegramId)
                 .single();
 
@@ -423,15 +599,16 @@ app.post('/api/payment-webhook', async (req, res) => {
             console.log(`✅ Подписка активирована для ${metadata.telegramId}`);
             console.log(`🔑 Ключ: ${licenseKey}`);
 
-            const excelCaption = 
+            // Отправляем сообщение с ключом
+            const message = 
                 `🎉 *Спасибо за покупку Cryptalyx!*\n\n` +
                 `🔑 *Ваш лицензионный ключ:* \`${licenseKey}\`\n` +
                 `📊 *Тариф:* ${metadata.plan === 'premium' ? 'Премиум' : 'Базовая'}\n` +
                 `⏱ *Срок:* ${metadata.period === 'year' ? '1 год' : '1 месяц'}\n\n` +
-                `📎 Файл с разблокированными функциями во вложении.`;
+                `🌐 *Войти в кабинет:* https://${process.env.RENDER_EXTERNAL_URL || 'localhost:3001'}/login.html\n` +
+                `📊 *Управление портфелем:* https://${process.env.RENDER_EXTERNAL_URL || 'localhost:3001'}/dashboard.html`;
 
-            await sendFileToTelegram(metadata.telegramId, './public/cryptalyx.xlsm', excelCaption);
-            await sendFileToTelegram(metadata.telegramId, './public/instruction.pdf', '📘 *Инструкция по работе с Cryptalyx*');
+            await sendMessageToTelegram(user.telegram_id, message);
         }
 
         res.sendStatus(200);
@@ -509,15 +686,15 @@ app.post('/api/nowpayments-webhook', async (req, res) => {
             console.log(`🔑 Ключ: ${licenseKey}`);
 
             if (user) {
-                const excelCaption = 
+                const message = 
                     `🎉 *Спасибо за покупку Cryptalyx (USDT)!*\n\n` +
                     `🔑 *Ваш лицензионный ключ:* \`${licenseKey}\`\n` +
                     `📊 *Тариф:* ${subscription.plan_type === 'premium' ? 'Премиум' : 'Базовый'}\n` +
                     `⏱ *Срок:* ${subscription.period === 'year' ? '1 год' : '1 месяц'}\n\n` +
-                    `📎 Файл с разблокированными функциями во вложении.`;
+                    `🌐 *Войти в кабинет:* https://${process.env.RENDER_EXTERNAL_URL || 'localhost:3001'}/login.html\n` +
+                    `📊 *Управление портфелем:* https://${process.env.RENDER_EXTERNAL_URL || 'localhost:3001'}/dashboard.html`;
 
-                await sendFileToTelegram(user.telegram_id, './public/cryptalyx.xlsm', excelCaption);
-                await sendFileToTelegram(user.telegram_id, './public/instruction.pdf', '📘 *Инструкция по работе с Cryptalyx*');
+                await sendMessageToTelegram(user.telegram_id, message);
             }
         }
 
@@ -529,7 +706,7 @@ app.post('/api/nowpayments-webhook', async (req, res) => {
     }
 });
 
-// ===== Эндпоинт для получения информации о пользователе (личный кабинет) =====
+// ===== Эндпоинт для получения информации о пользователе =====
 app.get('/api/user-info', async (req, res) => {
     try {
         const { telegramId } = req.query;
@@ -538,7 +715,6 @@ app.get('/api/user-info', async (req, res) => {
             return res.status(400).json({ error: 'telegramId обязателен' });
         }
         
-        // Ищем пользователя
         const { data: user, error: userError } = await supabase
             .from('users')
             .select('id, email, login, license_key, plan, expire_date')
@@ -549,7 +725,6 @@ app.get('/api/user-info', async (req, res) => {
             return res.json({ subscription: null });
         }
         
-        // Ищем активную подписку
         const { data: subscription, error: subError } = await supabase
             .from('subscriptions')
             .select('license_key, plan_type, period, expire_date, status')
@@ -593,7 +768,7 @@ app.get('/api/user-info', async (req, res) => {
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'cryptalyx2026';
 const JWT_SECRET = process.env.JWT_SECRET || 'cryptalyx_secret';
 
-// Вход
+// Вход в админку
 app.post('/api/admin/login', (req, res) => {
     const { password } = req.body;
     console.log('🔑 Попытка входа в админку');
@@ -628,23 +803,20 @@ function verifyAdmin(req, res, next) {
     });
 }
 
-// Статистика
+// Статистика для админки
 app.get('/api/admin/stats', verifyAdmin, async (req, res) => {
     console.log('📊 Запрос статистики от админа');
     
     try {
-        console.log('🔍 Запрос к таблице users...');
         const { count: totalUsers, error: usersError } = await supabase
             .from('users')
             .select('*', { count: 'exact', head: true });
         
         if (usersError) {
             console.error('❌ Ошибка users:', usersError);
-            return res.status(500).json({ error: 'Ошибка получения пользователей', details: usersError });
+            return res.status(500).json({ error: 'Ошибка получения пользователей' });
         }
-        console.log(`✅ users count: ${totalUsers}`);
 
-        console.log('🔍 Запрос к таблице subscriptions (active)...');
         const { count: activeSubs, error: subsError } = await supabase
             .from('subscriptions')
             .select('*', { count: 'exact', head: true })
@@ -652,11 +824,9 @@ app.get('/api/admin/stats', verifyAdmin, async (req, res) => {
         
         if (subsError) {
             console.error('❌ Ошибка subscriptions:', subsError);
-            return res.status(500).json({ error: 'Ошибка получения подписок', details: subsError });
+            return res.status(500).json({ error: 'Ошибка получения подписок' });
         }
-        console.log(`✅ active subs count: ${activeSubs}`);
 
-        console.log('🔍 Запрос к таблице subscriptions (premium)...');
         const { count: premiumCount, error: premiumError } = await supabase
             .from('subscriptions')
             .select('*', { count: 'exact', head: true })
@@ -665,11 +835,9 @@ app.get('/api/admin/stats', verifyAdmin, async (req, res) => {
         
         if (premiumError) {
             console.error('❌ Ошибка premium:', premiumError);
-            return res.status(500).json({ error: 'Ошибка получения premium', details: premiumError });
+            return res.status(500).json({ error: 'Ошибка получения premium' });
         }
-        console.log(`✅ premium count: ${premiumCount}`);
 
-        console.log('🔍 Запрос к таблице subscriptions (basic)...');
         const { count: basicCount, error: basicError } = await supabase
             .from('subscriptions')
             .select('*', { count: 'exact', head: true })
@@ -678,148 +846,73 @@ app.get('/api/admin/stats', verifyAdmin, async (req, res) => {
         
         if (basicError) {
             console.error('❌ Ошибка basic:', basicError);
-            return res.status(500).json({ error: 'Ошибка получения basic', details: basicError });
+            return res.status(500).json({ error: 'Ошибка получения basic' });
         }
-        console.log(`✅ basic count: ${basicCount}`);
 
-        const result = {
+        res.json({
             totalUsers: totalUsers || 0,
             activeSubscriptions: activeSubs || 0,
             premiumCount: premiumCount || 0,
             basicCount: basicCount || 0
-        };
-        
-        console.log('📦 Отправка результата:', result);
-        res.json(result);
+        });
         
     } catch (error) {
         console.error('❌ Критическая ошибка в /stats:', error);
-        res.status(500).json({ 
-            error: 'Внутренняя ошибка сервера', 
-            message: error.message,
-            stack: error.stack 
-        });
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
 
-// Список пользователей
+// Список пользователей для админки
 app.get('/api/admin/users', verifyAdmin, async (req, res) => {
     console.log('👥 Запрос списка пользователей от админа');
     
     try {
-        console.log('🔍 1. Пытаемся получить пользователей из таблицы users...');
-        
-        // Получаем всех пользователей
         const { data: users, error: usersError } = await supabase
             .from('users')
             .select('*')
-            .order('start_date', { ascending: false });
+            .order('created_at', { ascending: false });
         
         if (usersError) {
             console.error('❌ Ошибка получения users:', usersError);
-            console.error('❌ Детали ошибки:', JSON.stringify(usersError, null, 2));
-            return res.status(500).json({ 
-                error: 'Ошибка получения пользователей',
-                details: usersError
-            });
+            return res.status(500).json({ error: 'Ошибка получения пользователей' });
         }
         
-        console.log(`✅ Получено ${users?.length || 0} пользователей`);
-        
         if (!users || users.length === 0) {
-            console.log('📦 Пользователей нет, отправляем пустой массив');
             return res.json([]);
         }
         
-        // Для каждого пользователя получим его подписки
         const result = [];
         
-        for (let i = 0; i < users.length; i++) {
-            const user = users[i];
-            console.log(`🔍 Обработка пользователя ${i + 1}/${users.length}: ID ${user.id}`);
+        for (const user of users) {
+            const { data: subscriptions } = await supabase
+                .from('subscriptions')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
             
-            try {
-                // Получаем последнюю подписку пользователя
-                const { data: subscriptions, error: subsError } = await supabase
-                    .from('subscriptions')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-                
-                if (subsError) {
-                    console.error(`⚠️ Ошибка получения подписок для user ${user.id}:`, subsError);
-                    // Добавляем пользователя без подписки
-                    result.push({
-                        id: user.id,
-                        telegram_id: user.telegram_id,
-                        telegram_username: user.login || user.telegram_username,
-                        email: user.email,
-                        login: user.login,
-                        license_key: user.license_key,
-                        plan: user.plan,
-                        expire_date: user.expire_date,
-                        created_at: user.created_at,
-                        status: user.status || 'inactive'
-                    });
-                    continue;
-                }
-                
-                // Берём последнюю подписку (если есть)
-                const subscription = subscriptions && subscriptions.length > 0 ? subscriptions[0] : null;
-                
-                if (subscription) {
-                    console.log(`✅ Найдена подписка для user ${user.id}:`, subscription.id);
-                } else {
-                    console.log(`ℹ️ Нет подписок для user ${user.id}`);
-                }
-                
-                result.push({
-                    id: user.id,
-                    telegram_id: user.telegram_id,
-                    telegram_username: user.login || user.telegram_username,
-                    email: user.email,
-                    login: user.login,
-                    license_key: subscription?.license_key || user.license_key,
-                    plan: subscription?.plan_type || user.plan,
-                    expire_date: subscription?.expire_date || user.expire_date,
-                    created_at: user.created_at,
-                    status: subscription?.status || user.status || 'inactive'
-                });
-                
-            } catch (subError) {
-                console.error(`❌ Критическая ошибка при обработке user ${user.id}:`, subError);
-                // Добавляем пользователя с базовыми данными
-                result.push({
-                    id: user.id,
-                    telegram_id: user.telegram_id,
-                    telegram_username: user.login || user.telegram_username,
-                    email: user.email,
-                    login: user.login,
-                    license_key: user.license_key,
-                    plan: user.plan,
-                    expire_date: user.expire_date,
-                    created_at: user.created_at,
-                    status: user.status || 'error'
-                });
-            }
+            const subscription = subscriptions?.[0];
+            
+            result.push({
+                id: user.id,
+                telegram_id: user.telegram_id,
+                telegram_username: user.login || user.telegram_username,
+                email: user.email,
+                login: user.login,
+                license_key: subscription?.license_key || user.license_key,
+                plan: subscription?.plan_type || user.plan,
+                period: subscription?.period || null,
+                expire_date: subscription?.expire_date || user.expire_date,
+                created_at: user.created_at,
+                status: subscription?.status || user.status || 'inactive'
+            });
         }
         
-        console.log(`📦 Отправка ${result.length} пользователей`);
-        console.log('📦 Первый пользователь:', JSON.stringify(result[0], null, 2));
         res.json(result);
         
     } catch (error) {
-        console.error('❌ КРИТИЧЕСКАЯ ОШИБКА в /users:');
-        console.error('❌ Имя ошибки:', error.name);
-        console.error('❌ Сообщение:', error.message);
-        console.error('❌ Стек:', error.stack);
-        
-        res.status(500).json({ 
-            error: 'Внутренняя ошибка сервера',
-            message: error.message,
-            name: error.name
-        });
+        console.error('❌ Ошибка в /users:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
 
@@ -828,21 +921,32 @@ app.post('/api/admin/extend', verifyAdmin, async (req, res) => {
     try {
         const { userId, months } = req.body;
         
-        const { data: user } = await supabase
-            .from('users')
+        const { data: subscription } = await supabase
+            .from('subscriptions')
             .select('expire_date')
-            .eq('id', userId)
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
             .single();
         
         const now = new Date();
         let newDate;
         
-        if (user?.expire_date && new Date(user.expire_date) > now) {
-            newDate = new Date(user.expire_date);
+        if (subscription?.expire_date && new Date(subscription.expire_date) > now) {
+            newDate = new Date(subscription.expire_date);
             newDate.setMonth(newDate.getMonth() + months);
         } else {
             newDate = new Date();
             newDate.setMonth(newDate.getMonth() + months);
+        }
+        
+        if (subscription) {
+            await supabase
+                .from('subscriptions')
+                .update({ expire_date: newDate.toISOString() })
+                .eq('user_id', userId)
+                .eq('status', 'active');
         }
         
         await supabase
@@ -862,17 +966,8 @@ app.delete('/api/admin/user/:id', verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Сначала удаляем подписки
-        await supabase
-            .from('subscriptions')
-            .delete()
-            .eq('user_id', id);
-        
-        // Потом пользователя
-        await supabase
-            .from('users')
-            .delete()
-            .eq('id', id);
+        await supabase.from('subscriptions').delete().eq('user_id', id);
+        await supabase.from('users').delete().eq('id', id);
         
         res.json({ success: true });
     } catch (error) {
@@ -880,13 +975,13 @@ app.delete('/api/admin/user/:id', verifyAdmin, async (req, res) => {
         res.status(500).json({ error: 'Ошибка удаления пользователя' });
     }
 });
-// ===== Проверка лицензии для Excel =====
+
+// ===== Проверка лицензии =====
 app.get('/check_license', async (req, res) => {
     const licenseKey = req.query.license_key;
     console.log('🔑 Проверка ключа:', licenseKey);
     
     try {
-        // Ищем подписку по ключу
         const { data: sub, error } = await supabase
             .from('subscriptions')
             .select('license_key, plan_type, status, expire_date')
@@ -931,66 +1026,67 @@ app.get('/check_license', async (req, res) => {
     }
 });
 
-// ===== ИМПОРТ CSV =====
-app.post('/api/import/csv', upload.single('file'), async (req, res) => {
+// ===== Скачивание файлов с проверкой ключа =====
+app.get('/download/:filename', async (req, res) => {
+    const filename = req.params.filename;
+    const licenseKey = req.query.key;
+    
+    if (filename === 'instruction.pdf') {
+        const filePath = path.join(PUBLIC_PATH, filename);
+        if (fs.existsSync(filePath)) {
+            return res.download(filePath);
+        }
+        return res.status(404).send('Файл не найден');
+    }
+    
+    if (!licenseKey) {
+        return res.status(403).send('Требуется лицензионный ключ');
+    }
+    
     try {
-        const results = [];
-        const { exchange } = req.body; // 'bybit', 'binance', 'kucoin'
+        const { data: sub, error } = await supabase
+            .from('subscriptions')
+            .select('status, expire_date')
+            .eq('license_key', licenseKey)
+            .single();
         
-        fs.createReadStream(req.file.path)
-            .pipe(csv())
-            .on('data', (data) => results.push(data))
-            .on('end', async () => {
-                // Удаляем временный файл
-                fs.unlinkSync(req.file.path);
-                
-                const transactions = [];
-                
-                // Парсим в зависимости от биржи
-                if (exchange === 'bybit') {
-                    // Bybit формат
-                    results.forEach(row => {
-                        if (row.Type === 'SPOT' || row.Type === 'spot') {
-                            transactions.push({
-                                coin: row.Symbol?.replace('USDT', ''),
-                                amount: parseFloat(row.Executed),
-                                price: parseFloat(row.Price),
-                                date: row.Time,
-                                type: row.Side === 'Buy' ? 'buy' : 'sell'
-                            });
-                        }
-                    });
-                } else if (exchange === 'binance') {
-                    // Binance формат
-                    results.forEach(row => {
-                        if (row.操作 === '买入' || row.Operation === 'Buy') {
-                            transactions.push({
-                                coin: row.币种?.replace('USDT', ''),
-                                amount: parseFloat(row.数量),
-                                price: parseFloat(row.价格),
-                                date: row.时间,
-                                type: 'buy'
-                            });
-                        }
-                    });
-                }
-                
-                res.json({ 
-                    success: true, 
-                    transactions: transactions,
-                    count: transactions.length 
-                });
-            });
+        if (error || !sub) {
+            return res.status(404).send('Ключ не найден');
+        }
+        
+        if (sub.status !== 'active') {
+            return res.status(403).send('Ключ не активирован');
+        }
+        
+        const now = new Date();
+        const expire = new Date(sub.expire_date);
+        
+        if (expire < now) {
+            return res.status(403).send('Срок действия ключа истек');
+        }
+        
+        const filePath = path.join(PUBLIC_PATH, filename);
+        if (fs.existsSync(filePath)) {
+            return res.download(filePath);
+        }
+        res.status(404).send('Файл не найден');
     } catch (error) {
-        console.error('CSV import error:', error);
-        res.status(500).json({ error: 'Ошибка импорта CSV' });
+        console.error('Ошибка при скачивании:', error);
+        res.status(500).send('Внутренняя ошибка сервера');
     }
 });
 
+// ===== Запуск сервера =====
 app.listen(PORT, () => {
-    console.log(`🚀 Cryptalyx Server запущен на порту ${PORT}`);
-    console.log(`📡 http://localhost:${PORT}/api/health`);
-    console.log(`🔗 Webhook URL ЮKassa: https://sensitometrically-numinous-kristyn.ngrok-free.dev/api/payment-webhook`);
-    console.log(`🔗 Webhook URL NOWPayments: https://sensitometrically-numinous-kristyn.ngrok-free.dev/api/nowpayments-webhook`);
-    console.log(`👑 Админ-панель: http://localhost:${PORT}/admin/index.html`);
+    console.log(`\n🚀 Cryptalyx Server запущен на порту ${PORT}`);
+    console.log(`📁 Рабочая папка: ${BASE_PATH}`);
+    console.log(`📁 Public папка: ${PUBLIC_PATH}`);
+    console.log(`📁 Admin папка: ${ADMIN_PATH}`);
+    console.log(`\n📌 Ссылки:`);
+    console.log(`   Главная:     http://localhost:${PORT}`);
+    console.log(`   Вход:        http://localhost:${PORT}/login`);
+    console.log(`   Дашборд:     http://localhost:${PORT}/dashboard`);
+    console.log(`   Проверка:    http://localhost:${PORT}/check`);
+    console.log(`   Админка:     http://localhost:${PORT}/admin/index.html`);
+    console.log(`   API здоровье: http://localhost:${PORT}/api/health\n`);
 });
