@@ -10,7 +10,6 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 const csv = require('csv-parser');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
