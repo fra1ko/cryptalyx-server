@@ -781,8 +781,6 @@ async function importCSV() {
         return;
     }
     
-    console.log('📤 Загрузка файла:', fileInput.files[0].name);
-    
     const importBtn = document.querySelector('.import-section .action-btn');
     const originalText = importBtn.textContent;
     importBtn.textContent = '⏳ Загрузка...';
@@ -808,10 +806,16 @@ async function importCSV() {
             if (data.count > 0) {
                 document.getElementById('importPreview').style.display = 'block';
                 
-                // Показываем первые 3 транзакции в консоли
-                console.log('📊 Первые 3 транзакции:', data.transactions.slice(0, 3));
+                // Показываем детали в консоли
+                console.log('📊 Найденные монеты:', data.coins);
+                console.log('📈 Итоговые позиции:', data.transactions);
                 
-                showMessage(`✅ Найдено ${data.count} покупок`, 'success');
+                let details = `Найдено ${data.count} монет:\n`;
+                data.transactions.slice(0, 3).forEach(t => {
+                    details += `${t.coin}: ${t.amount.toFixed(4)} по средней $${t.price.toFixed(2)}\n`;
+                });
+                
+                showMessage(`✅ Найдено ${data.count} монет`, 'success');
             } else {
                 showMessage('❌ Не найдено спот-покупок в CSV', 'error');
             }
@@ -859,13 +863,14 @@ function confirmImport() {
     
     let added = 0;
     window.importedTransactions.forEach(t => {
+        // Добавляем как одну позицию с средней ценой
         portfolio.addAsset(t.coin, t.amount, t.price);
         added++;
     });
     
     document.getElementById('importPreview').style.display = 'none';
     document.getElementById('csvFile').value = '';
-    showMessage(`✅ Добавлено ${added} позиций в портфель`, 'success');
+    showMessage(`✅ Добавлено ${added} позиций в портфель (средние цены рассчитаны)`, 'success');
     window.importedTransactions = null;
 }
 

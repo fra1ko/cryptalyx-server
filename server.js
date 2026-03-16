@@ -239,7 +239,6 @@ const upload = multer({ dest: '/tmp/uploads/' });
 
 app.post('/api/import/csv', upload.single('file'), async (req, res) => {
     try {
-        const results = [];
         const { exchange } = req.body;
         
         if (!req.file) {
@@ -248,79 +247,99 @@ app.post('/api/import/csv', upload.single('file'), async (req, res) => {
         
         console.log('📥 Импорт CSV:', exchange, req.file.path);
         
-        fs.createReadStream(req.file.path, { encoding: 'utf8' })
-            .pipe(csv({
-                separator: ';', // Bybit использует точку с запятой!
-                mapHeaders: ({ header }) => header.trim().replace(/^"/, '').replace(/"$/, ''),
-                mapValues: ({ value }) => value.trim().replace(/^"/, '').replace(/"$/, '')
-            }))
-            .on('data', (data) => {
-                // Пропускаем пустые строки
-                if (Object.keys(data).length === 0) return;
+        // Читаем файл как текст
+        const fileContent = fs.readFileSync(req.file.path, 'utf8');
+        const lines = fileContent.split('\n');
+        
+        // Удаляем временный файл
+        fs.unlinkSync(req.file.path);
+        
+        const transactions = [];
+        const coinAmounts = {}; // для агрегации по монетам
+        
+        if (exchange === 'bybit') {
+            // Заголовки: Currency,Contract,Type,Direction,Quantity,Position,Filled Price,Funding,Fee Paid,Cash Flow,Change,Wallet Balance,Action,OrderId,TradedTime
+            
+            for (let i = 1; i < lines.length; i++) { // пропускаем заголовок
+                const line = lines[i].trim();
+                if (!line) continue;
                 
-                console.log('📄 Строка CSV:', data);
-                results.push(data);
-            })
-            .on('end', async () => {
-                // Удаляем временный файл
-                try {
-                    fs.unlinkSync(req.file.path);
-                } catch (e) {}
-
-                const transactions = [];
+                // Разделяем по запятой
+                const parts = line.split(',');
+                if (parts.length < 10) continue;
                 
-                // Парсим Bybit CSV
-                if (exchange === 'bybit') {
-                    results.forEach((row, index) => {
-                        // Проверяем что это спот-сделка (Currency не USDT)
-                        const currency = row.Currency || row.currency || '';
-                        const type = row.Type || row.type || '';
-                        const direction = row.Direction || row.direction || '';
-                        
-                        // Нам нужны только строки где Currency - это монета (не USDT)
-                        if (currency !== 'USDT' && type === 'TRADE' && direction === 'Buy') {
-                            
-                            const symbol = row.Contract || row.contract || '';
-                            const quantity = parseFloat((row.Quantity || row.quantity || '0').replace(',', '.'));
-                            const price = parseFloat((row['Filled Price'] || row.Filled_Price || row.filled_price || '0').replace(',', '.'));
-                            
-                            // Проверяем что цена и количество > 0
-                            if (quantity > 0 && price > 0) {
-                                // Извлекаем монету (если есть Contract, используем его, иначе Currency)
-                                let coin = '';
-                                if (symbol.includes('USDT')) {
-                                    coin = symbol.replace('USDT', '');
-                                } else {
-                                    coin = currency;
-                                }
-                                
-                                transactions.push({
-                                    coin: coin,
-                                    amount: quantity,
-                                    price: price,
-                                    date: row.Time || row.time || new Date().toISOString(),
-                                    type: 'buy'
-                                });
-                                
-                                console.log(`✅ Найдена покупка: ${coin} ${quantity} по $${price}`);
-                            }
-                        }
-                    });
-                }
+                const currency = parts[0]; // USDT или монета
+                const contract = parts[1]; // например BTCUSDT
+                const type = parts[2]; // TRADE, LIQUIDATION и т.д.
+                const direction = parts[3]; // Buy или Sell
+                const quantity = parseFloat(parts[4]); // количество
+                const price = parseFloat(parts[6]); // цена
                 
-                console.log(`📊 Найдено транзакций: ${transactions.length}`);
-                
-                res.json({ 
-                    success: true, 
-                    transactions: transactions,
-                    count: transactions.length,
-                    debug: { 
-                        rows: results.length, 
-                        exchange: exchange,
-                        firstRow: results[0] || null
+                // Нас интересуют только спот-покупки (где Currency - это монета, а не USDT)
+                if (currency !== 'USDT' && type === 'TRADE' && direction === 'Buy' && quantity > 0 && price > 0) {
+                    
+                    // Проверяем что это не фьючерсы (если есть Contract, то берем из него монету)
+                    let coin = currency;
+                    if (contract && contract.includes('USDT')) {
+                        coin = contract.replace('USDT', '');
                     }
+                    
+                    // Агрегируем по монетам
+                    if (!coinAmounts[coin]) {
+                        coinAmounts[coin] = {
+                            totalAmount: 0,
+                            totalValue: 0,
+                            transactions: []
+                        };
+                    }
+                    
+                    coinAmounts[coin].totalAmount += quantity;
+                    coinAmounts[coin].totalValue += quantity * price;
+                    coinAmounts[coin].transactions.push({
+                        amount: quantity,
+                        price: price,
+                        date: parts[14] || new Date().toISOString()
+                    });
+                    
+                    console.log(`✅ Найдена покупка: ${coin} ${quantity} по $${price}`);
+                }
+            }
+            
+            // Преобразуем агрегированные данные в транзакции
+            for (const [coin, data] of Object.entries(coinAmounts)) {
+                const avgPrice = data.totalValue / data.totalAmount;
+                transactions.push({
+                    coin: coin,
+                    amount: data.totalAmount,
+                    price: avgPrice,
+                    transactions: data.transactions.length,
+                    type: 'buy'
                 });
-            });
+            }
+        }
+        
+        // Парсим Binance CSV
+        if (exchange === 'binance') {
+            // Аналогичная логика для Binance
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const parts = line.split(',');
+                // ... логика для Binance
+            }
+        }
+        
+        console.log(`📊 Найдено уникальных монет: ${transactions.length}`);
+        console.log('📦 Итоговые позиции:', transactions);
+        
+        res.json({ 
+            success: true, 
+            transactions: transactions,
+            count: transactions.length,
+            coins: Object.keys(coinAmounts)
+        });
+        
     } catch (error) {
         console.error('❌ CSV import error:', error);
         res.status(500).json({ error: 'Ошибка импорта CSV: ' + error.message });
