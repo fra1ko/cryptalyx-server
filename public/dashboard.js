@@ -781,7 +781,9 @@ async function importCSV() {
         return;
     }
     
-    // Проверяем размер файла (предупреждение)
+    console.log('📤 Загружаем файл:', fileInput.files[0].name);
+    console.log('📊 Биржа:', exchange);
+    
     const fileSize = fileInput.files[0].size / (1024 * 1024);
     if (fileSize > 10) {
         if (!confirm(`Файл большой (${fileSize.toFixed(1)} МБ). Обработка может занять некоторое время. Продолжить?`)) {
@@ -794,7 +796,6 @@ async function importCSV() {
     importBtn.textContent = '⏳ Загрузка...';
     importBtn.disabled = true;
     
-    // Показываем прогресс
     showMessage(`⏳ Обработка файла... Это может занять до минуты`, 'info');
     
     const formData = new FormData();
@@ -821,15 +822,17 @@ async function importCSV() {
                 let details = `✅ Найдено ${data.count} монет\n`;
                 details += `📊 Обработано ${data.processed} строк из ${data.totalLines}\n`;
                 details += `⏱ Время: ${data.time}\n\n`;
-                details += `Топ монет:\n`;
                 
-                data.transactions.slice(0, 5).forEach(t => {
-                    details += `${t.coin}: ${t.amount.toFixed(4)} (${t.count} покупок)\n`;
-                });
+                if (data.transactions.length > 0) {
+                    details += `Топ монет:\n`;
+                    data.transactions.slice(0, 5).forEach(t => {
+                        details += `${t.coin}: ${t.amount.toFixed(4)} (${t.count} покупок)\n`;
+                    });
+                }
                 
                 showMessage(details, 'success');
             } else {
-                showMessage('❌ Не найдено спот-покупок в CSV', 'error');
+                showMessage('❌ Не найдено покупок в CSV. Возможно это фьючерсный лог, но парсер должен работать.', 'error');
             }
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
