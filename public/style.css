@@ -2115,3 +2115,56 @@ td {
 .nav-links a:not(.btn-primary):hover {
     color: #f1f5f9;
 }
+
+/* Стили для даты и времени */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dashboard-time {
+    color: #3b82f6;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-family: monospace;
+    letter-spacing: 2px;
+    background: #1e293b;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid #3b82f6;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+}
+
+.dashboard-date {
+    color: #94a3b8;
+    font-size: 1rem;
+    background: #1e293b;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid #334155;
+}
+
+/* На мобильных устройствах */
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .dashboard-time {
+        font-size: 1.2rem;
+        padding: 0.4rem 0.8rem;
+    }
+}

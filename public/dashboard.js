@@ -873,11 +873,7 @@ async function importCSV() {
         console.log('📦 Ответ сервера:', data);
         
         if (data.success) {
-            if (data.already_imported) {
-                showMessage(`ℹ️ Файл уже был импортирован ранее`, 'info');
-            } else {
-                showMessage(`✅ Импортировано ${data.transactions_count} транзакций`, 'success');
-            }
+            showMessage(`✅ Импортировано ${data.transactions_count} транзакций`, 'success');
             
             // Перезагружаем портфель с сервера
             await loadPortfolioFromServer();
@@ -885,9 +881,13 @@ async function importCSV() {
             // Обновляем дашборд
             portfolio.load();
             
-            // FIX: Сбрасываем input файла
             fileInput.value = '';
             
+        } else if (data.already_imported) {
+            // Показываем информацию о предыдущем импорте
+            const importDate = new Date(data.imported_at).toLocaleString('ru-RU');
+            showMessage(`ℹ️ Файл "${data.filename}" уже был импортирован ${importDate}`, 'info');
+            fileInput.value = '';
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }
@@ -1088,12 +1088,23 @@ function deleteAllAssets() {
 // Функция обновления времени
 function updateTime() {
     const timeEl = document.getElementById('currentTime');
-    if (timeEl) {
+    const dateEl = document.getElementById('currentDate');
+    
+    if (timeEl && dateEl) {
         const now = new Date();
+        
+        // Время с секундами
         timeEl.textContent = now.toLocaleTimeString('ru-RU', { 
             hour: '2-digit', 
             minute: '2-digit',
             second: '2-digit'
+        });
+        
+        // Дата
+        dateEl.textContent = now.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
         });
     }
 }

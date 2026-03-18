@@ -342,7 +342,6 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ===== ИМПОРТ CSV =====
 const upload = multer({ 
     dest: '/tmp/uploads/',
     limits: { fileSize: 50 * 1024 * 1024 } // 50MB максимум
@@ -422,23 +421,24 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
         const fileContent = fs.readFileSync(req.file.path, 'utf8');
         const fileHash = getFileHash(fileContent);
         
-// Проверяем, не импортировали ли уже этот файл
-const { data: existingImport } = await supabase
-    .from('import_history')
-    .select('id')
-    .eq('user_id', user_id)
-    .eq('file_hash', fileHash)
-    .maybeSingle();
-
-if (existingImport) {
-    fs.unlinkSync(req.file.path);
-    // Вместо ошибки - возвращаем успех с информацией
-    return res.json({ 
-        success: true, 
-        message: 'Файл уже был импортирован ранее',
-        already_imported: true
-    });
-}
+        // Проверяем, не импортировали ли уже этот файл
+        const { data: existingImport } = await supabase
+            .from('import_history')
+            .select('id, filename, imported_at')
+            .eq('user_id', user_id)
+            .eq('file_hash', fileHash)
+            .maybeSingle();
+        
+        if (existingImport) {
+            fs.unlinkSync(req.file.path);
+            return res.json({ 
+                success: false,
+                already_imported: true,
+                message: 'Этот файл уже был импортирован',
+                imported_at: existingImport.imported_at,
+                filename: existingImport.filename
+            });
+        }
         
         const lines = fileContent.split('\n');
         console.log(`📊 Всего строк в файле: ${lines.length}`);
@@ -513,40 +513,57 @@ if (existingImport) {
         
         // Сохраняем транзакции по 1000 записей
         const chunkSize = 1000;
+        let insertedCount = 0;
+        
         for (let i = 0; i < transactions.length; i += chunkSize) {
             const chunk = transactions.slice(i, i + chunkSize);
-            const { error } = await supabase
+            const { error, count } = await supabase
                 .from('user_transactions')
-                .insert(chunk);
+                .insert(chunk)
+                .select('count');
             
-            if (error && !error.message.includes('duplicate key')) {
-                throw error;
+            if (error) {
+                console.error('❌ Ошибка сохранения чанка:', error);
+                if (!error.message.includes('duplicate key')) {
+                    throw error;
+                }
+            } else {
+                insertedCount += chunk.length;
             }
         }
         
-        // Сохраняем историю импорта
-        await supabase
-            .from('import_history')
-            .insert({
-                user_id,
-                filename: req.file.originalname,
-                file_hash: fileHash,
-                transactions_count: transactions.length,
-                first_date: firstDate?.toISOString(),
-                last_date: lastDate?.toISOString()
-            });
+        console.log(`✅ Сохранено ${insertedCount} транзакций`);
+        
+        // Сохраняем историю импорта ТОЛЬКО если были сохранены транзакции
+        if (insertedCount > 0) {
+            const { error: historyError } = await supabase
+                .from('import_history')
+                .insert({
+                    user_id,
+                    filename: req.file.originalname,
+                    file_hash: fileHash,
+                    transactions_count: insertedCount,
+                    first_date: firstDate?.toISOString(),
+                    last_date: lastDate?.toISOString()
+                });
+            
+            if (historyError) {
+                console.error('❌ Ошибка сохранения истории:', historyError);
+            }
+        }
         
         // Пересчитываем портфель
-        const portfolio = await calculatePortfolio(user_id);
+        const portfolio = await calculatePortfolioWithPrices(user_id);
         
         res.json({ 
             success: true, 
-            transactions_count: transactions.length,
+            transactions_count: insertedCount,
             skipped_count: skippedCount,
             first_date: firstDate,
             last_date: lastDate,
-            portfolio: portfolio,
-            message: `✅ Импортировано ${transactions.length} транзакций`
+            portfolio: portfolio?.portfolio || {},
+            prices: portfolio?.prices || {},
+            message: `✅ Импортировано ${insertedCount} транзакций`
         });
         
     } catch (error) {
