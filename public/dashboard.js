@@ -760,14 +760,14 @@ async function loadPortfolioFromServer() {
             // Очищаем текущий портфель
             portfolio.assets = [];
             
-            // Добавляем монеты из сервера
+            // Добавляем монеты из сервера с ценами
             for (const [coin, amount] of Object.entries(data.portfolio)) {
-                // FIX: Добавляем только положительные балансы
                 if (amount > 0) {
+                    const avgPrice = data.prices?.[coin] || 0;
                     portfolio.assets.push({
                         coin,
                         amount,
-                        price: 0, // цена подгрузится позже
+                        price: avgPrice, // Сохраняем среднюю цену
                         id: Date.now() + Math.random()
                     });
                 }
@@ -839,13 +839,15 @@ async function importCSV() {
                 showMessage(`✅ Импортировано ${data.transactions_count} транзакций`, 'success');
             }
             
-            // ВСЕГДА перезагружаем портфель с сервера
+            // Перезагружаем портфель с сервера
             await loadPortfolioFromServer();
             
             // Обновляем дашборд
             portfolio.load();
             
+            // FIX: Сбрасываем input файла
             fileInput.value = '';
+            
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }
@@ -909,7 +911,9 @@ async function appendCSV() {
             } else {
                 showMessage('ℹ️ Новых транзакций не найдено', 'info');
             }
+            // FIX: Сбрасываем input файла
             fileInput.value = '';
+            
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }

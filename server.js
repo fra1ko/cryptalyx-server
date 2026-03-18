@@ -655,23 +655,28 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
     }
 });
 
-// Получение портфеля
+// Получение портфеля с ценами
 app.get('/api/portfolio', verifyToken, async (req, res) => {
     try {
         const user_id = req.user.id;
         
         const { data, error } = await supabase
             .from('user_portfolio')
-            .select('portfolio, last_updated')
+            .select('portfolio, avg_prices, last_updated')
             .eq('user_id', user_id)
             .maybeSingle();
         
         if (error || !data) {
-            return res.json({ portfolio: {}, last_updated: null });
+            return res.json({ 
+                portfolio: {}, 
+                prices: {}, 
+                last_updated: null 
+            });
         }
         
         res.json({
             portfolio: data.portfolio,
+            prices: data.avg_prices || {},
             last_updated: data.last_updated
         });
         
@@ -1471,6 +1476,82 @@ app.get('/download/:filename', async (req, res) => {
         res.status(500).send('Внутренняя ошибка сервера');
     }
 });
+
+// Функция для пересчета портфеля с ценами
+async function calculatePortfolioWithPrices(user_id) {
+    console.log(`📊 Пересчет портфеля для пользователя ${user_id}`);
+    
+    const { data: transactions, error } = await supabase
+        .from('user_transactions')
+        .select('coin, cash_flow, price, timestamp, type, direction')
+        .eq('user_id', user_id)
+        .order('timestamp', { ascending: true });
+    
+    if (error) {
+        console.error('❌ Ошибка получения транзакций:', error);
+        return null;
+    }
+    
+    // Словарь для хранения баланса и средней цены
+    const portfolio = {}; // { coin: { amount: 0, totalValue: 0, avgPrice: 0 } }
+    
+    transactions.forEach(tx => {
+        if (!portfolio[tx.coin]) {
+            portfolio[tx.coin] = {
+                amount: 0,
+                totalValue: 0,
+                avgPrice: 0
+            };
+        }
+        
+        // Cash flow уже учитывает направление (+ для покупок, - для продаж)
+        portfolio[tx.coin].amount += tx.cash_flow;
+        
+        // Для расчета средней цены учитываем только покупки
+        if (tx.type === 'TRADE' && tx.direction === 'Buy' && tx.price > 0) {
+            // Увеличиваем общую стоимость с учетом нового количества
+            portfolio[tx.coin].totalValue += Math.abs(tx.cash_flow) * tx.price;
+        }
+    });
+    
+    // Считаем среднюю цену и фильтруем
+    const finalPortfolio = {};
+    const finalPrices = {};
+    
+    for (const [coin, data] of Object.entries(portfolio)) {
+        // Оставляем только положительные балансы
+        if (Math.abs(data.amount) > 0.00000001 && data.amount > 0) {
+            finalPortfolio[coin] = data.amount;
+            
+            // Средняя цена = общая стоимость / количество
+            if (data.amount > 0 && data.totalValue > 0) {
+                finalPrices[coin] = data.totalValue / data.amount;
+            } else {
+                finalPrices[coin] = 0;
+            }
+        }
+    }
+    
+    console.log('📦 Итоговый портфель:', finalPortfolio);
+    console.log('💰 Средние цены:', finalPrices);
+    
+    // Сохраняем в базу
+    const { error: upsertError } = await supabase
+        .from('user_portfolio')
+        .upsert({
+            user_id,
+            portfolio: finalPortfolio,
+            avg_prices: finalPrices, // Нужно добавить эту колонку в таблицу
+            last_updated: new Date().toISOString()
+        });
+    
+    if (upsertError) {
+        console.error('❌ Ошибка сохранения портфеля:', upsertError);
+        return null;
+    }
+    
+    return { portfolio: finalPortfolio, prices: finalPrices };
+}
 
 // ===== Запуск сервера =====
 app.listen(PORT, () => {
