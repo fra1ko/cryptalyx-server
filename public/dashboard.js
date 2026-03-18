@@ -1,24 +1,26 @@
 // ===== Класс портфеля =====
 class Portfolio {
-constructor() {
-    this.assets = [];
-    this.prices = {};
-    this.priceCache = {}; // Добавить эту строку
-    this.freeUSDT = parseFloat(localStorage.getItem('freeUSDT')) || 0;
-    this.activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
-    this.chartPeriod = localStorage.getItem('chartPeriod') || '1m';
-    this.portfolioChart = null;
-    this.categoryChart = null;
-    this.load();
-    this.startPriceUpdate();
-    setTimeout(() => this.initCharts(), 500);
-}
+    constructor() {
+        this.assets = [];
+        this.prices = {};
+        this.priceCache = {};
+        this.freeUSDT = parseFloat(localStorage.getItem('freeUSDT')) || 0;
+        this.activityLog = JSON.parse(localStorage.getItem('activityLog')) || [];
+        this.chartPeriod = localStorage.getItem('chartPeriod') || '1m';
+        this.portfolioChart = null;
+        this.categoryChart = null;
+        this.load();
+        this.startPriceUpdate();
+        setTimeout(() => this.initCharts(), 500);
+    }
 
     load() {
         const saved = localStorage.getItem('portfolio');
         if (saved) {
             try {
                 this.assets = JSON.parse(saved);
+                // FIX: Фильтруем только положительные балансы
+                this.assets = this.assets.filter(a => a.amount > 0.000001);
             } catch (e) {
                 this.assets = [];
             }
@@ -87,89 +89,41 @@ constructor() {
         this.save();
     }
 
-async updatePrices() {
-    const now = Date.now();
-    
-    for (const asset of this.assets) {
-        const coin = asset.coin;
+    async updatePrices() {
+        console.log('🔄 Обновление цен...');
+        const now = Date.now();
         
-        // Если цена обновлялась меньше минуты назад, пропускаем
-        if (this.priceCache && this.priceCache[coin] && (now - this.priceCache[coin].timestamp < 60000)) {
-            this.prices[coin] = this.priceCache[coin].price;
-            continue;
-        }
-        
-        let price = 0;
-        
-        // Массив API для последовательного опроса
-        const apis = [
-            {
-                url: `https://api.binance.com/api/v3/ticker/price?symbol=${coin}USDT`,
-                parser: (data) => parseFloat(data.price)
-            },
-            {
-                url: `https://api.bybit.com/v5/market/tickers?category=spot&symbol=${coin}USDT`,
-                parser: (data) => data.result?.list?.[0]?.lastPrice ? parseFloat(data.result.list[0].lastPrice) : 0
-            },
-            {
-                url: `https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=${coin}-USDT`,
-                parser: (data) => data.data?.price ? parseFloat(data.data.price) : 0
-            }
-        ];
-        
-        // Пробуем все API по очереди
-        for (const api of apis) {
-            try {
-                const response = await fetch(api.url);
-                if (response.ok) {
-                    const data = await response.json();
-                    price = api.parser(data);
-                    if (price > 0) {
-                        break;
-                    }
-                }
-            } catch (e) {
+        for (const asset of this.assets) {
+            const coin = asset.coin;
+            
+            if (this.priceCache && this.priceCache[coin] && (now - this.priceCache[coin].timestamp < 60000)) {
+                this.prices[coin] = this.priceCache[coin].price;
                 continue;
             }
-        }
-        
-        // Если не нашли через стандартные API, пробуем CoinGecko
-        if (price === 0) {
-            const specialCoins = {
-                'HYPE': 'hyperliquid',
-                'SPX': 'spx6900',
-                'PEPE': 'pepe',
-                'WIF': 'dogwifcoin',
-                'JUP': 'jupiter',
-                'RNDR': 'render',
-                'ONDO': 'ondo-finance',
-                'STRK': 'starknet',
-                'ARB': 'arbitrum',
-                'OP': 'optimism'
-            };
-
-            const geckoId = specialCoins[coin] || coin.toLowerCase();
             
+            let price = 0;
+            
+            // FIX: Используем наш прокси на сервере вместо прямых API
             try {
-                const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${geckoId}&vs_currencies=usd`);
+                const response = await fetch(`/api/price/${coin}`);
                 if (response.ok) {
                     const data = await response.json();
-                    price = data[geckoId]?.usd || 0;
+                    price = data.price;
+                    console.log(`💰 ${coin}: $${price}`);
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.log(`❌ Ошибка получения цены для ${coin}`);
+            }
+            
+            this.priceCache[coin] = {
+                price: price,
+                timestamp: now
+            };
+            
+            this.prices[coin] = price;
         }
-        
-        // Сохраняем в кэш
-        if (!this.priceCache) this.priceCache = {};
-        this.priceCache[coin] = {
-            price: price,
-            timestamp: now
-        };
-        
-        this.prices[coin] = price;
+        this.render();
     }
-    this.render();
-}
 
     startPriceUpdate() {
         this.updatePrices();
@@ -179,11 +133,20 @@ async updatePrices() {
     getStats() {
         let totalBuyValue = 0;
         let totalCurrentValue = 0;
+        let validAssets = 0;
         
         this.assets.forEach(asset => {
             const currentPrice = this.prices[asset.coin] || 0;
-            totalBuyValue += asset.amount * asset.price;
-            totalCurrentValue += asset.amount * currentPrice;
+            const buyValue = asset.amount * asset.price;
+            const currentValue = asset.amount * currentPrice;
+            
+            // FIX: Пропускаем монеты с нулевой стоимостью и отрицательные балансы
+            if (asset.amount <= 0) return;
+            if (currentValue < 1 && buyValue < 1) return;
+            
+            totalBuyValue += buyValue;
+            totalCurrentValue += currentValue;
+            validAssets++;
         });
         
         const profit = totalCurrentValue - totalBuyValue;
@@ -194,7 +157,8 @@ async updatePrices() {
             totalCurrentValue,
             totalPortfolioValue: totalCurrentValue + this.freeUSDT,
             profit,
-            profitPercent
+            profitPercent,
+            validAssets
         };
     }
 
@@ -207,7 +171,16 @@ async updatePrices() {
         let worstProfit = Infinity;
         
         this.assets.forEach(asset => {
+            // FIX: Пропускаем монеты с нулевым балансом
+            if (asset.amount <= 0) return;
+            
             const currentPrice = this.prices[asset.coin] || 0;
+            const buyValue = asset.amount * asset.price;
+            const currentValue = asset.amount * currentPrice;
+            
+            // Пропускаем мелочь
+            if (currentValue < 1 && buyValue < 1) return;
+            
             const profit = ((currentPrice - asset.price) / asset.price * 100);
             
             if (profit > bestProfit) {
@@ -228,6 +201,7 @@ async updatePrices() {
         
         let totalValue = 0;
         this.assets.forEach(asset => {
+            if (asset.amount <= 0) return;
             totalValue += asset.amount * (this.prices[asset.coin] || 0);
         });
         
@@ -235,6 +209,7 @@ async updatePrices() {
         
         let sumSquares = 0;
         this.assets.forEach(asset => {
+            if (asset.amount <= 0) return;
             const share = (asset.amount * (this.prices[asset.coin] || 0)) / totalValue;
             sumSquares += share * share;
         });
@@ -255,6 +230,7 @@ async updatePrices() {
         if (diversification > 70) score -= 1;
         
         this.assets.forEach(asset => {
+            if (asset.amount <= 0) return;
             const currentPrice = this.prices[asset.coin] || 0;
             if (currentPrice > asset.price) score -= 0.3;
             if (currentPrice < asset.price * 0.7) score += 0.5;
@@ -279,182 +255,155 @@ async updatePrices() {
         this.updateCharts();
     }
 
-updateCharts() {
-    const stats = this.getStats();
-    
-    // График истории портфеля
-    const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
-    if (portfolioCtx) {
-        // Уничтожаем предыдущий график если есть
-        if (this.portfolioChart) {
-            this.portfolioChart.destroy();
-        }
+    updateCharts() {
+        const stats = this.getStats();
         
-        const dates = [];
-        const values = [];
-        
-        let days = 30;
-        let interval = 1;
-        let format = 'short';
-        
-        if (this.chartPeriod === '1d') {
-            days = 1;
-            interval = 1;
-            format = 'hour';
-            // Для 1 дня показываем часы
-            for (let i = 24; i >= 0; i--) {
-                const date = new Date();
-                date.setHours(date.getHours() - i);
-                dates.push(date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
-                values.push(stats.totalPortfolioValue * (0.99 + Math.random() * 0.02));
+        const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
+        if (portfolioCtx) {
+            if (this.portfolioChart) {
+                this.portfolioChart.destroy();
             }
-        } else if (this.chartPeriod === '1w') {
-            days = 7;
-            interval = 1;
-            for (let i = days; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
-                values.push(stats.totalPortfolioValue * (0.97 + Math.random() * 0.06));
+            
+            const dates = [];
+            const values = [];
+            
+            let days = 30;
+            
+            if (this.chartPeriod === '1d') {
+                days = 1;
+                for (let i = 24; i >= 0; i--) {
+                    const date = new Date();
+                    date.setHours(date.getHours() - i);
+                    dates.push(date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+                    values.push(stats.totalPortfolioValue * (0.99 + Math.random() * 0.02));
+                }
+            } else if (this.chartPeriod === '1w') {
+                days = 7;
+                for (let i = days; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                    values.push(stats.totalPortfolioValue * (0.97 + Math.random() * 0.06));
+                }
+            } else if (this.chartPeriod === '1m') {
+                days = 30;
+                for (let i = days; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                    values.push(stats.totalPortfolioValue * (0.95 + Math.random() * 0.1));
+                }
+            } else if (this.chartPeriod === '1y') {
+                days = 365;
+                for (let i = days; i >= 0; i -= 7) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                    values.push(stats.totalPortfolioValue * (0.85 + Math.random() * 0.3));
+                }
             }
-        } else if (this.chartPeriod === '1m') {
-            days = 30;
-            interval = 1;
-            for (let i = days; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
-                values.push(stats.totalPortfolioValue * (0.95 + Math.random() * 0.1));
-            }
-        } else if (this.chartPeriod === '1y') {
-            days = 365;
-            interval = 7; // Показываем каждую неделю
-            for (let i = days; i >= 0; i -= interval) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
-                values.push(stats.totalPortfolioValue * (0.85 + Math.random() * 0.3));
-            }
-        }
-        
-        this.portfolioChart = new Chart(portfolioCtx, {
-            type: 'line',
-            data: {
-                labels: dates,
-                datasets: [{
-                    label: 'Стоимость портфеля (USDT)',
-                    data: values,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.2,
-                    fill: true,
-                    pointRadius: this.chartPeriod === '1d' ? 2 : 1,
-                    pointHoverRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true }
+            
+            this.portfolioChart = new Chart(portfolioCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Стоимость портфеля (USDT)',
+                        data: values,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.2,
+                        fill: true
+                    }]
                 },
-                scales: {
-                    y: {
-                        grid: { color: '#334155' },
-                        ticks: { 
-                            color: '#94a3b8',
-                            callback: function(value) {
-                                return '$' + value.toFixed(0);
-                            }
-                        }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { 
-                            color: '#94a3b8',
-                            maxTicksLimit: this.chartPeriod === '1y' ? 12 : 8
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', maxTicksLimit: 8 }
                         }
                     }
                 }
-            }
-        });
-    }
-
-    // График распределения по категориям
-    const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
-    if (categoryCtx) {
-        if (this.categoryChart) {
-            this.categoryChart.destroy();
+            });
         }
-        
-        const categories = {
-            'L1': ['BTC', 'ETH', 'SOL', 'BNB'],
-            'L2': ['MATIC', 'ARB', 'OP'],
-            'DeFi': ['UNI', 'AAVE', 'LINK'],
-            'Meme': ['DOGE', 'SHIB', 'PEPE']
-        };
-        
-        const categoryData = {};
-        const categoryColors = {
-            'L1': '#3b82f6',
-            'L2': '#8b5cf6',
-            'DeFi': '#ec4899',
-            'Meme': '#f59e0b',
-            'Other': '#64748b'
-        };
-        
-        this.assets.forEach(asset => {
-            const value = asset.amount * (this.prices[asset.coin] || 0);
-            
-            let category = 'Other';
-            for (const [cat, coins] of Object.entries(categories)) {
-                if (coins.includes(asset.coin)) {
-                    category = cat;
-                    break;
-                }
+
+        const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
+        if (categoryCtx) {
+            if (this.categoryChart) {
+                this.categoryChart.destroy();
             }
             
-            categoryData[category] = (categoryData[category] || 0) + value;
-        });
-        
-        // Если нет данных, показываем заглушку
-        if (Object.keys(categoryData).length === 0) {
-            categoryData['Нет данных'] = 1;
-        }
-        
-        this.categoryChart = new Chart(categoryCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(categoryData),
-                datasets: [{
-                    data: Object.values(categoryData),
-                    backgroundColor: Object.keys(categoryData).map(cat => categoryColors[cat] || '#64748b'),
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { 
-                    legend: { display: false },
-                    tooltip: { enabled: true }
+            const categories = {
+                'L1': ['BTC', 'ETH', 'SOL', 'BNB'],
+                'L2': ['MATIC', 'ARB', 'OP'],
+                'DeFi': ['UNI', 'AAVE', 'LINK'],
+                'Meme': ['DOGE', 'SHIB', 'PEPE']
+            };
+            
+            const categoryData = {};
+            const categoryColors = {
+                'L1': '#3b82f6',
+                'L2': '#8b5cf6',
+                'DeFi': '#ec4899',
+                'Meme': '#f59e0b',
+                'Other': '#64748b'
+            };
+            
+            this.assets.forEach(asset => {
+                if (asset.amount <= 0) return;
+                const value = asset.amount * (this.prices[asset.coin] || 0);
+                if (value < 1) return;
+                
+                let category = 'Other';
+                for (const [cat, coins] of Object.entries(categories)) {
+                    if (coins.includes(asset.coin)) {
+                        category = cat;
+                        break;
+                    }
                 }
+                
+                categoryData[category] = (categoryData[category] || 0) + value;
+            });
+            
+            if (Object.keys(categoryData).length === 0) {
+                categoryData['Нет данных'] = 1;
             }
-        });
+            
+            this.categoryChart = new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryData),
+                    datasets: [{
+                        data: Object.values(categoryData),
+                        backgroundColor: Object.keys(categoryData).map(cat => categoryColors[cat] || '#64748b'),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
 
-        // Легенда
-        const legend = document.getElementById('categoryLegend');
-        if (legend) {
-            legend.innerHTML = Object.keys(categoryData).map(cat => `
-                <div class="legend-item">
-                    <span class="legend-color" style="background: ${categoryColors[cat] || '#64748b'};"></span>
-                    <span>${cat}</span>
-                </div>
-            `).join('');
+            const legend = document.getElementById('categoryLegend');
+            if (legend) {
+                legend.innerHTML = Object.keys(categoryData).map(cat => `
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: ${categoryColors[cat] || '#64748b'};"></span>
+                        <span>${cat}</span>
+                    </div>
+                `).join('');
+            }
         }
     }
-}
 
     render() {
         const stats = this.getStats();
@@ -524,18 +473,27 @@ updateCharts() {
             });
         }
         
-        // Таблица портфеля
+        // FIX: Таблица портфеля с фильтрацией
         const tbody = document.getElementById('portfolioBody');
         if (!tbody) return;
         
-        if (this.assets.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="empty-state">📭 Портфель пуст. Добавьте первую монету!</td></tr>';
+        // FIX: Фильтруем активы: только положительные балансы и стоимость > $1
+        const validAssets = this.assets.filter(asset => {
+            if (asset.amount <= 0) return false;
+            const currentPrice = this.prices[asset.coin] || 0;
+            const currentValue = asset.amount * currentPrice;
+            const buyValue = asset.amount * asset.price;
+            return currentValue >= 1 || buyValue >= 1;
+        });
+        
+        if (validAssets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-state">📭 Нет активов стоимостью больше $1</td></tr>';
             const aiSection = document.getElementById('aiSection');
             if (aiSection) aiSection.style.display = 'none';
         } else {
             let rows = '';
 
-            this.assets.forEach(asset => {
+            validAssets.forEach(asset => {
                 const currentPrice = this.prices[asset.coin] || 0;
                 const currentValue = asset.amount * currentPrice;
                 const buyValue = asset.amount * asset.price;
@@ -585,8 +543,8 @@ updateCharts() {
         if (alertsList) {
             const alerts = [];
             
-            if (this.assets.length === 0) {
-                alerts.push({ type: 'info', text: 'Добавьте первый актив' });
+            if (validAssets.length === 0) {
+                alerts.push({ type: 'info', text: 'Нет активов стоимостью больше $1' });
             } else {
                 if (bestWorst.bestProfit > 50) {
                     alerts.push({ type: 'success', text: `${bestWorst.bestAsset?.coin} вырос на ${bestWorst.bestProfit.toFixed(1)}%!` });
@@ -601,7 +559,7 @@ updateCharts() {
                 }
             }
             
-            if (alerts.length === 0 && this.assets.length > 0) {
+            if (alerts.length === 0 && validAssets.length > 0) {
                 alerts.push({ type: 'info', text: 'Все хорошо. Продолжайте в том же духе' });
             }
             
@@ -621,19 +579,20 @@ updateCharts() {
         const aiDiv = document.getElementById('aiRecommendations');
         if (!aiDiv) return;
         
-        if (this.assets.length === 0) {
+        const validAssets = this.assets.filter(a => a.amount > 0);
+        
+        if (validAssets.length === 0) {
             const aiSection = document.getElementById('aiSection');
             if (aiSection) aiSection.style.display = 'none';
             return;
         }
         
         const stats = this.getStats();
-        const bestWorst = this.getBestAndWorstAssets();
         const recommendations = [];
         
         let maxShare = 0;
         let maxCoin = '';
-        this.assets.forEach(asset => {
+        validAssets.forEach(asset => {
             const currentPrice = this.prices[asset.coin] || 0;
             const share = stats.totalCurrentValue > 0 ? ((asset.amount * currentPrice) / stats.totalCurrentValue * 100) : 0;
             if (share > maxShare) {
@@ -646,7 +605,7 @@ updateCharts() {
             recommendations.push(`⚠️ **Критическая концентрация**: ${maxShare.toFixed(1)}% в ${maxCoin}. Рекомендуем диверсификацию.`);
         }
         
-        this.assets.forEach(asset => {
+        validAssets.forEach(asset => {
             const currentPrice = this.prices[asset.coin] || 0;
             const profit = ((currentPrice - asset.price) / asset.price * 100);
             
@@ -659,8 +618,8 @@ updateCharts() {
             }
         });
         
-        if (this.assets.length < 3) {
-            recommendations.push(`📊 **Мало активов**: Добавьте еще ${3 - this.assets.length} монеты для диверсификации`);
+        if (validAssets.length < 3) {
+            recommendations.push(`📊 **Мало активов**: Добавьте еще ${3 - validAssets.length} монеты для диверсификации`);
         }
         
         if (recommendations.length === 0) {
@@ -673,6 +632,8 @@ updateCharts() {
                 <small>⚡ ${new Date().toLocaleTimeString()}</small>
             </div>
         `).join('');
+        
+        document.getElementById('aiSection').style.display = 'block';
     }
 }
 
@@ -700,7 +661,6 @@ function addAsset() {
 
     portfolio.addAsset(coin, amount, price);
     
-    // Очистка полей
     document.getElementById('coinInput').value = '';
     document.getElementById('amountInput').value = '';
     document.getElementById('priceInput').value = '';
@@ -762,7 +722,6 @@ function changeChartPeriod(period) {
     
     localStorage.setItem('chartPeriod', period);
     
-    // Подсветка активной кнопки
     document.querySelectorAll('.period-btn').forEach(btn => {
         btn.classList.remove('active');
     });
@@ -774,20 +733,53 @@ function changeChartPeriod(period) {
 
 // ===== ФУНКЦИИ ДЛЯ ИМПОРТА =====
 
+// Загрузка портфеля с сервера
+async function loadPortfolioFromServer() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    
+    try {
+        const response = await fetch('/api/portfolio', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        
+        if (data.portfolio && Object.keys(data.portfolio).length > 0) {
+            // Очищаем текущий портфель
+            portfolio.assets = [];
+            
+            // Добавляем монеты из сервера
+            for (const [coin, amount] of Object.entries(data.portfolio)) {
+                // FIX: Добавляем только положительные балансы
+                if (amount > 0) {
+                    portfolio.assets.push({
+                        coin,
+                        amount,
+                        price: 0, // цена подгрузится позже
+                        id: Date.now() + Math.random()
+                    });
+                }
+            }
+            
+            portfolio.save();
+            console.log('📦 Портфель загружен с сервера:', portfolio.assets);
+            return true;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки портфеля:', error);
+    }
+    return false;
+}
+
 // Импорт нового CSV
 async function importCSV() {
     const fileInput = document.getElementById('csvFile');
     const exchangeSelect = document.getElementById('exchangeSelect');
     
-    if (!fileInput) {
-        console.error('❌ Элемент csvFile не найден');
-        showMessage('Ошибка: элемент выбора файла не найден', 'error');
-        return;
-    }
-    
-    if (!exchangeSelect) {
-        console.error('❌ Элемент exchangeSelect не найден');
-        showMessage('Ошибка: элемент выбора биржи не найден', 'error');
+    if (!fileInput || !exchangeSelect) {
+        showMessage('Ошибка интерфейса', 'error');
         return;
     }
     
@@ -796,7 +788,6 @@ async function importCSV() {
         return;
     }
     
-    // Получаем токен из localStorage
     const token = localStorage.getItem('token');
     if (!token) {
         showMessage('Требуется авторизация', 'error');
@@ -932,8 +923,8 @@ async function checkImportHistory() {
             }
         });
         
-        if (response.status === 401) {
-            showMessage('Требуется авторизация', 'error');
+        if (!response.ok) {
+            showMessage('Ошибка получения истории', 'error');
             return;
         }
         
@@ -953,43 +944,6 @@ async function checkImportHistory() {
         console.error('❌ Ошибка получения истории:', error);
         showMessage('❌ Ошибка соединения', 'error');
     }
-}
-
-// Загрузка портфеля с сервера
-async function loadPortfolioFromServer() {
-    const token = localStorage.getItem('token');
-    if (!token) return false;
-    
-    try {
-        const response = await fetch('/api/portfolio', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        const data = await response.json();
-        
-        if (data.portfolio && Object.keys(data.portfolio).length > 0) {
-            // Очищаем текущий портфель
-            portfolio.assets = [];
-            
-            // Добавляем монеты из сервера
-            for (const [coin, amount] of Object.entries(data.portfolio)) {
-                portfolio.assets.push({
-                    coin,
-                    amount,
-                    price: 0, // цена подгрузится позже
-                    id: Date.now() + Math.random()
-                });
-            }
-            
-            portfolio.save();
-            console.log('📦 Портфель загружен с сервера:', portfolio.assets);
-            return true;
-        }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки портфеля:', error);
-    }
-    return false;
 }
 
 function showMessage(text, type) {
@@ -1034,8 +988,6 @@ function showMessage(text, type) {
 window.importCSV = importCSV;
 window.appendCSV = appendCSV;
 window.checkImportHistory = checkImportHistory;
-window.confirmImport = confirmImport;
-window.cancelImport = cancelImport;
 
 function confirmImport() {
     if (!window.importedTransactions || window.importedTransactions.length === 0) {
@@ -1045,14 +997,13 @@ function confirmImport() {
     
     let added = 0;
     window.importedTransactions.forEach(t => {
-        // Добавляем как одну позицию с средней ценой
         portfolio.addAsset(t.coin, t.amount, t.price);
         added++;
     });
     
     document.getElementById('importPreview').style.display = 'none';
     document.getElementById('csvFile').value = '';
-    showMessage(`✅ Добавлено ${added} позиций в портфель (средние цены рассчитаны)`, 'success');
+    showMessage(`✅ Добавлено ${added} позиций в портфель`, 'success');
     window.importedTransactions = null;
 }
 
@@ -1062,7 +1013,6 @@ function cancelImport() {
     window.importedTransactions = null;
     showMessage('Импорт отменен', 'info');
 }
-
 
 // Закрываем меню при клике вне
 document.addEventListener('click', function(event) {
@@ -1075,7 +1025,7 @@ document.addEventListener('click', function(event) {
 });
 
 // Инициализация
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const key = checkAuth();
     if (!key) return;
 
@@ -1086,6 +1036,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     portfolio = new Portfolio();
+    
+    // FIX: Загружаем портфель с сервера если есть токен
+    if (localStorage.getItem('token')) {
+        await loadPortfolioFromServer();
+    }
     
     // Делаем функции глобальными
     window.portfolio = portfolio;
