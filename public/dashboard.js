@@ -774,43 +774,32 @@ function changeChartPeriod(period) {
 
 // ===== ФУНКЦИИ ДЛЯ ИМПОРТА =====
 
-// Загрузка портфеля с сервера
-async function loadPortfolioFromServer() {
-    try {
-        const response = await fetch('/api/portfolio');
-        const data = await response.json();
-        
-        if (data.portfolio && Object.keys(data.portfolio).length > 0) {
-            // Преобразуем объект портфеля в формат для таблицы
-            const assets = [];
-            for (const [coin, amount] of Object.entries(data.portfolio)) {
-                assets.push({
-                    coin,
-                    amount,
-                    price: 0, // цена будет подгружена позже
-                    id: Date.now() + Math.random()
-                });
-            }
-            
-            portfolio.assets = assets;
-            portfolio.save();
-            
-            console.log('📦 Портфель загружен с сервера:', assets);
-            return true;
-        }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки портфеля:', error);
-    }
-    return false;
-}
-
 // Импорт нового CSV
 async function importCSV() {
     const fileInput = document.getElementById('csvFile');
-    const exchange = document.getElementById('exchangeSelect').value;
+    const exchangeSelect = document.getElementById('exchangeSelect');
+    
+    if (!fileInput) {
+        console.error('❌ Элемент csvFile не найден');
+        showMessage('Ошибка: элемент выбора файла не найден', 'error');
+        return;
+    }
+    
+    if (!exchangeSelect) {
+        console.error('❌ Элемент exchangeSelect не найден');
+        showMessage('Ошибка: элемент выбора биржи не найден', 'error');
+        return;
+    }
     
     if (!fileInput.files[0]) {
         showMessage('Выберите CSV файл', 'error');
+        return;
+    }
+    
+    // Получаем токен из localStorage
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showMessage('Требуется авторизация', 'error');
         return;
     }
     
@@ -819,7 +808,7 @@ async function importCSV() {
         return;
     }
     
-    const importBtn = document.querySelector('.import-section .action-btn');
+    const importBtn = event.target;
     const originalText = importBtn.textContent;
     importBtn.textContent = '⏳ Загрузка...';
     importBtn.disabled = true;
@@ -828,11 +817,14 @@ async function importCSV() {
     
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
-    formData.append('exchange', exchange);
+    formData.append('exchange', exchangeSelect.value);
     
     try {
         const response = await fetch('/api/import/csv', {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
             body: formData
         });
         
@@ -840,15 +832,15 @@ async function importCSV() {
         console.log('📦 Ответ сервера:', data);
         
         if (data.success) {
-            showMessage(`✅ Импортировано ${data.transactions_count} транзакций\n📅 Период: ${new Date(data.first_date).toLocaleDateString()} - ${new Date(data.last_date).toLocaleDateString()}`, 'success');
+            showMessage(`✅ Импортировано ${data.transactions_count} транзакций`, 'success');
             
-            // Перезагружаем портфель
+            // Перезагружаем портфель с сервера
             await loadPortfolioFromServer();
             
             // Обновляем дашборд
             portfolio.load();
             
-            document.getElementById('csvFile').value = '';
+            fileInput.value = '';
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }
@@ -861,17 +853,28 @@ async function importCSV() {
     }
 }
 
-// Добавление новых транзакций к существующему портфелю
+// Добавление новых транзакций
 async function appendCSV() {
     const fileInput = document.getElementById('csvFile');
-    const exchange = document.getElementById('exchangeSelect').value;
+    const exchangeSelect = document.getElementById('exchangeSelect');
+    
+    if (!fileInput || !exchangeSelect) {
+        showMessage('Ошибка интерфейса', 'error');
+        return;
+    }
     
     if (!fileInput.files[0]) {
         showMessage('Выберите CSV файл', 'error');
         return;
     }
     
-    const importBtn = document.querySelector('.import-section .action-btn');
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showMessage('Требуется авторизация', 'error');
+        return;
+    }
+    
+    const importBtn = event.target;
     const originalText = importBtn.textContent;
     importBtn.textContent = '⏳ Добавление...';
     importBtn.disabled = true;
@@ -880,11 +883,14 @@ async function appendCSV() {
     
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
-    formData.append('exchange', exchange);
+    formData.append('exchange', exchangeSelect.value);
     
     try {
         const response = await fetch('/api/import/csv/append', {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
             body: formData
         });
         
@@ -898,8 +904,7 @@ async function appendCSV() {
             } else {
                 showMessage('ℹ️ Новых транзакций не найдено', 'info');
             }
-            
-            document.getElementById('csvFile').value = '';
+            fileInput.value = '';
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }
@@ -914,29 +919,85 @@ async function appendCSV() {
 
 // Проверка истории импортов
 async function checkImportHistory() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showMessage('Требуется авторизация', 'error');
+        return;
+    }
+    
     try {
-        const response = await fetch('/api/import/history');
+        const response = await fetch('/api/import/history', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.status === 401) {
+            showMessage('Требуется авторизация', 'error');
+            return;
+        }
+        
         const data = await response.json();
         
         if (data.history && data.history.length > 0) {
             let historyText = '📋 История импортов:\n';
             data.history.forEach(h => {
-                historyText += `• ${new Date(h.imported_at).toLocaleDateString()}: ${h.transactions_count} транзакций (${h.filename})\n`;
+                const date = new Date(h.imported_at).toLocaleDateString('ru-RU');
+                historyText += `• ${date}: ${h.transactions_count} транзакций (${h.filename})\n`;
             });
             showMessage(historyText, 'info');
+        } else {
+            showMessage('История импортов пуста', 'info');
         }
     } catch (error) {
         console.error('❌ Ошибка получения истории:', error);
+        showMessage('❌ Ошибка соединения', 'error');
     }
 }
 
+// Загрузка портфеля с сервера
+async function loadPortfolioFromServer() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    
+    try {
+        const response = await fetch('/api/portfolio', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        
+        if (data.portfolio && Object.keys(data.portfolio).length > 0) {
+            // Очищаем текущий портфель
+            portfolio.assets = [];
+            
+            // Добавляем монеты из сервера
+            for (const [coin, amount] of Object.entries(data.portfolio)) {
+                portfolio.assets.push({
+                    coin,
+                    amount,
+                    price: 0, // цена подгрузится позже
+                    id: Date.now() + Math.random()
+                });
+            }
+            
+            portfolio.save();
+            console.log('📦 Портфель загружен с сервера:', portfolio.assets);
+            return true;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки портфеля:', error);
+    }
+    return false;
+}
+
 function showMessage(text, type) {
-    // Убираем старые сообщения
     const oldMsg = document.querySelector('.import-message');
     if (oldMsg) oldMsg.remove();
     
     const msg = document.createElement('div');
-    msg.className = type === 'success' ? 'import-success' : type === 'info' ? 'import-info' : 'import-error';
+    msg.className = 'import-message';
     msg.style.marginTop = '1rem';
     msg.style.padding = '0.75rem 1rem';
     msg.style.borderRadius = '0.5rem';
@@ -962,10 +1023,19 @@ function showMessage(text, type) {
     `;
     
     const importSection = document.querySelector('.import-section');
-    importSection.appendChild(msg);
+    if (importSection) {
+        importSection.appendChild(msg);
+    }
     
     setTimeout(() => msg.remove(), 10000);
 }
+
+// Добавляем функции в глобальную область
+window.importCSV = importCSV;
+window.appendCSV = appendCSV;
+window.checkImportHistory = checkImportHistory;
+window.confirmImport = confirmImport;
+window.cancelImport = cancelImport;
 
 function confirmImport() {
     if (!window.importedTransactions || window.importedTransactions.length === 0) {
@@ -993,8 +1063,6 @@ function cancelImport() {
     showMessage('Импорт отменен', 'info');
 }
 
-window.importCSV = importCSV;
-window.confirmImport = confirmImport;
 
 // Закрываем меню при клике вне
 document.addEventListener('click', function(event) {

@@ -141,6 +141,11 @@
             transform: translateY(-2px);
         }
 
+        .login-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .error-message {
             color: #f87171;
             margin-top: 1rem;
@@ -212,68 +217,51 @@
 </head>
 <body>
     <div class="login-container" id="loginContainer">
-        <!-- Контент будет вставлен через JS -->
+        <div class="logo">Cryptalyx</div>
+        <div class="subtitle">Войдите в свой личный кабинет</div>
+
+        <a href="https://t.me/cryptalyx_official_bot" target="_blank" class="telegram-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.06-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.04-.48-.82-.27-1.47-.42-1.42-.88.03-.24.35-.49.98-.74 3.84-1.67 6.4-2.78 7.68-3.32 3.66-1.54 4.42-1.81 4.92-1.82.11 0 .35.02.51.15.13.11.17.26.18.4-.01.11-.03.29-.07.47z"/>
+            </svg>
+            Войти через Telegram
+        </a>
+
+        <div class="divider">
+            <span>или</span>
+        </div>
+
+        <div class="license-section">
+            <label class="license-label">Введите лицензионный ключ</label>
+            <input type="text" class="license-input" id="licenseKey" 
+                   placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" 
+                   onkeypress="if(event.key==='Enter') loginWithKey()">
+            <button class="login-btn" id="loginBtn" onclick="loginWithKey()">Войти</button>
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <div class="info-text">
+            Нет ключа? <a href="https://t.me/cryptalyx_official_bot" target="_blank">Купить подписку в Telegram</a>
+        </div>
+
+        <a href="/" class="back-link">← Вернуться на главную</a>
+
+        <div class="demo-key">
+            <p>🔐 Для теста используйте ключ:</p>
+            <code>TEST-1234-5678-9012-3456-7890</code>
+        </div>
     </div>
 
     <script>
         // Проверяем авторизацию
-        if (localStorage.getItem('licenseKey')) {
-            // Показываем сообщение что уже авторизован
-            document.getElementById('loginContainer').innerHTML = `
-                <div class="logo">Cryptalyx</div>
-                <div class="subtitle">Вы уже авторизованы</div>
-                <div class="demo-key">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔑</div>
-                    <code>${localStorage.getItem('licenseKey').substring(0, 14)}...</code>
-                    <p style="margin-top: 1rem;">План: ${localStorage.getItem('plan') === 'premium' ? 'PREMIUM' : 'BASIC'}</p>
-                </div>
-                <a href="/dashboard.html" class="login-btn" style="text-decoration: none; display: block; margin: 1rem 0;">Перейти в портфель →</a>
-                <button onclick="logout()" class="telegram-btn" style="background: #334155; margin-top: 1rem;">Выйти</button>
-                <a href="/" class="back-link">← Вернуться на главную</a>
-            `;
-        } else {
-            // Показываем форму входа
-            document.getElementById('loginContainer').innerHTML = `
-                <div class="logo">Cryptalyx</div>
-                <div class="subtitle">Войдите в свой личный кабинет</div>
-
-                <a href="https://t.me/cryptalyx_official_bot" target="_blank" class="telegram-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.06-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.04-.48-.82-.27-1.47-.42-1.42-.88.03-.24.35-.49.98-.74 3.84-1.67 6.4-2.78 7.68-3.32 3.66-1.54 4.42-1.81 4.92-1.82.11 0 .35.02.51.15.13.11.17.26.18.4-.01.11-.03.29-.07.47z"/>
-                    </svg>
-                    Войти через Telegram
-                </a>
-
-                <div class="divider">
-                    <span>или</span>
-                </div>
-
-                <div class="license-section">
-                    <label class="license-label">Введите лицензионный ключ</label>
-                    <input type="text" class="license-input" id="licenseKey" 
-                           placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" 
-                           onkeypress="if(event.key==='Enter') loginWithKey()">
-                    <button class="login-btn" onclick="loginWithKey()">Войти</button>
-                    <div class="error-message" id="errorMessage"></div>
-                </div>
-
-                <div class="info-text">
-                    Нет ключа? <a href="https://t.me/cryptalyx_official_bot" target="_blank">Купить подписку в Telegram</a>
-                </div>
-
-                <a href="/" class="back-link">← Вернуться на главную</a>
-
-                <div class="demo-key">
-                    <p>🔐 Для теста используйте любой ключ</p>
-                    <code>TEST-1234-5678-9012</code>
-                </div>
-            `;
+        if (localStorage.getItem('token')) {
+            window.location.href = '/dashboard.html';
         }
 
-        // Функция входа
         async function loginWithKey() {
-            const licenseKey = document.getElementById('licenseKey')?.value.trim();
+            const licenseKey = document.getElementById('licenseKey').value.trim();
             const errorEl = document.getElementById('errorMessage');
+            const loginBtn = document.getElementById('loginBtn');
 
             if (!licenseKey) {
                 errorEl.textContent = 'Введите лицензионный ключ';
@@ -281,39 +269,55 @@
                 return;
             }
 
+            // Показываем загрузку
+            loginBtn.disabled = true;
+            loginBtn.textContent = '⏳ Вход...';
+            errorEl.style.display = 'none';
+
             try {
-                const response = await fetch(`/check_license?license_key=${encodeURIComponent(licenseKey)}`);
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ licenseKey })
+                });
+
                 const data = await response.json();
 
-                if (data.status === 'active') {
-                    localStorage.setItem('licenseKey', licenseKey);
-                    localStorage.setItem('plan', data.plan);
-                    localStorage.setItem('expireDate', data.expire_date);
+                if (response.ok && data.success) {
+                    // Сохраняем токен и данные пользователя
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userId', data.user.id);
+                    localStorage.setItem('licenseKey', data.user.licenseKey);
+                    localStorage.setItem('plan', data.user.plan);
+                    localStorage.setItem('email', data.user.email || '');
+                    localStorage.setItem('login', data.user.login || '');
+                    
+                    // Перенаправляем в дашборд
                     window.location.href = '/dashboard.html';
-                } else if (data.status === 'expired') {
-                    errorEl.textContent = 'Срок действия ключа истек';
-                    errorEl.style.display = 'block';
                 } else {
-                    // Для теста пропускаем любые ключи
-                    localStorage.setItem('licenseKey', licenseKey);
-                    localStorage.setItem('plan', 'basic');
-                    window.location.href = '/dashboard.html';
+                    errorEl.textContent = data.error || 'Ошибка входа';
+                    errorEl.style.display = 'block';
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Войти';
                 }
             } catch (error) {
-                // Если API не работает, пропускаем для теста
-                localStorage.setItem('licenseKey', licenseKey);
-                localStorage.setItem('plan', 'basic');
-                window.location.href = '/dashboard.html';
+                console.error('Ошибка:', error);
+                errorEl.textContent = 'Ошибка подключения к серверу';
+                errorEl.style.display = 'block';
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Войти';
             }
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.reload();
-        }
+        // Для теста - если нет настоящего ключа
+        window.testLogin = function() {
+            document.getElementById('licenseKey').value = 'TEST-1234-5678-9012-3456-7890';
+            loginWithKey();
+        };
 
         window.loginWithKey = loginWithKey;
-        window.logout = logout;
     </script>
 </body>
 </html>

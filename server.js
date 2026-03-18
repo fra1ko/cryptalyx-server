@@ -36,6 +36,9 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// ===== JWT настройки =====
+const JWT_SECRET = process.env.JWT_SECRET || 'cryptalyx_super_secret_key_2026';
+
 // ===== Middleware =====
 app.use(cors());
 app.use(express.json());
@@ -74,7 +77,7 @@ app.get('/download', (req, res) => {
 });
 
 // ===== Middleware для проверки токена =====
-function verifyToken(req, res, next) {
+async function verifyToken(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         return res.status(401).json({ error: 'Нет токена' });
@@ -86,8 +89,20 @@ function verifyToken(req, res, next) {
     }
     
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'cryptalyx_secret');
-        req.user = { id: decoded.userId || decoded.id || decoded.sub };
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Проверяем что пользователь существует
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', decoded.userId)
+            .maybeSingle();
+        
+        if (error || !user) {
+            return res.status(401).json({ error: 'Пользователь не найден' });
+        }
+        
+        req.user = { id: user.id };
         next();
     } catch (err) {
         console.error('❌ Ошибка верификации токена:', err.message);
@@ -278,6 +293,55 @@ app.get('/api/price/:coin', async (req, res) => {
     res.json({ price: 0, source: 'none' });
 });
 
+// ===== АВТОРИЗАЦИЯ =====
+app.post('/api/login', async (req, res) => {
+    try {
+        const { licenseKey } = req.body;
+        
+        if (!licenseKey) {
+            return res.status(400).json({ error: 'Введите лицензионный ключ' });
+        }
+        
+        // Ищем пользователя по лицензионному ключу
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, license_key, plan, email, login')
+            .eq('license_key', licenseKey)
+            .maybeSingle();
+        
+        if (error || !user) {
+            return res.status(401).json({ error: 'Недействительный ключ' });
+        }
+        
+        // Создаем JWT токен
+        const token = jwt.sign(
+            { 
+                userId: user.id,
+                licenseKey: user.license_key,
+                plan: user.plan 
+            }, 
+            JWT_SECRET, 
+            { expiresIn: '30d' }
+        );
+        
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                login: user.login,
+                plan: user.plan,
+                licenseKey: user.license_key
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка входа:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
+});
+
 // ===== ИМПОРТ CSV =====
 const upload = multer({ 
     dest: '/tmp/uploads/',
@@ -300,9 +364,8 @@ async function calculatePortfolio(user_id) {
     
     const { data: transactions, error } = await supabase
         .from('user_transactions')
-        .select('coin, cash_flow, timestamp')
-        .eq('user_id', user_id)
-        .order('timestamp', { ascending: true });
+        .select('coin, cash_flow')
+        .eq('user_id', user_id);
     
     if (error) {
         console.error('❌ Ошибка получения транзакций:', error);
@@ -318,6 +381,7 @@ async function calculatePortfolio(user_id) {
         portfolio[tx.coin] += tx.cash_flow;
     });
     
+    // Убираем монеты с нулевым балансом
     const finalPortfolio = {};
     for (const [coin, balance] of Object.entries(portfolio)) {
         if (Math.abs(balance) > 0.00000001) {
@@ -358,6 +422,7 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
         const fileContent = fs.readFileSync(req.file.path, 'utf8');
         const fileHash = getFileHash(fileContent);
         
+        // Проверяем, не импортировали ли уже этот файл
         const { data: existingImport } = await supabase
             .from('import_history')
             .select('id')
@@ -398,6 +463,7 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
             
             const currency = parts[currencyIdx];
             
+            // Пропускаем фьючерсы
             if (currency === 'USDT') {
                 skippedCount++;
                 continue;
@@ -438,12 +504,11 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
         if (transactions.length === 0) {
             return res.json({ 
                 success: false, 
-                error: 'Не найдено спотовых транзакций в файле',
-                processed: processedCount,
-                skipped: skippedCount
+                error: 'Не найдено спотовых транзакций в файле'
             });
         }
         
+        // Сохраняем транзакции по 1000 записей
         const chunkSize = 1000;
         for (let i = 0; i < transactions.length; i += chunkSize) {
             const chunk = transactions.slice(i, i + chunkSize);
@@ -456,6 +521,7 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
             }
         }
         
+        // Сохраняем историю импорта
         await supabase
             .from('import_history')
             .insert({
@@ -467,6 +533,7 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
                 last_date: lastDate?.toISOString()
             });
         
+        // Пересчитываем портфель
         const portfolio = await calculatePortfolio(user_id);
         
         res.json({ 
@@ -494,6 +561,7 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
             return res.status(400).json({ error: 'Файл не загружен' });
         }
         
+        // Получаем дату последней транзакции
         const { data: lastTx } = await supabase
             .from('user_transactions')
             .select('timestamp')
@@ -503,13 +571,13 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
             .maybeSingle();
         
         const lastDate = lastTx ? new Date(lastTx.timestamp) : null;
-        console.log(`📅 Последняя импортированная транзакция: ${lastDate}`);
+        console.log(`📅 Последняя транзакция: ${lastDate}`);
         
         const fileContent = fs.readFileSync(req.file.path, 'utf8');
         const lines = fileContent.split('\n');
         
         const transactions = [];
-        let newTransactionsCount = 0;
+        let newCount = 0;
         
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -526,6 +594,7 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
             
             const timestamp = parseBybitDate(timeStr);
             
+            // Пропускаем старые транзакции
             if (lastDate && timestamp <= lastDate) {
                 continue;
             }
@@ -547,7 +616,7 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
                 timestamp: timestamp.toISOString()
             });
             
-            newTransactionsCount++;
+            newCount++;
         }
         
         fs.unlinkSync(req.file.path);
@@ -560,19 +629,21 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
             });
         }
         
+        // Сохраняем новые транзакции
         const chunkSize = 1000;
         for (let i = 0; i < transactions.length; i += chunkSize) {
             const chunk = transactions.slice(i, i + chunkSize);
             await supabase.from('user_transactions').insert(chunk);
         }
         
+        // Пересчитываем портфель
         const portfolio = await calculatePortfolio(user_id);
         
         res.json({ 
             success: true, 
-            new_count: newTransactionsCount,
+            new_count: newCount,
             portfolio: portfolio,
-            message: `✅ Добавлено ${newTransactionsCount} новых транзакций`
+            message: `✅ Добавлено ${newCount} новых транзакций`
         });
         
     } catch (error) {
@@ -1095,7 +1166,6 @@ app.get('/api/user-info', async (req, res) => {
 
 // ===== АДМИНКА =====
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'cryptalyx2026';
-const JWT_SECRET = process.env.JWT_SECRET || 'cryptalyx_secret';
 
 app.post('/api/admin/login', (req, res) => {
     const { password } = req.body;

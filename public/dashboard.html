@@ -130,15 +130,18 @@
             </div>
         </div>
 
-        <!-- Добавить после блока с добавлением актива -->
+<!-- Импорт из CSV -->
 <div class="import-section">
     <h3>📤 Импорт из CSV (Bybit)</h3>
     <div class="import-controls">
+        <select id="exchangeSelect" class="exchange-select" style="margin-bottom: 10px;">
+            <option value="bybit">Bybit</option>
+        </select>
         <input type="file" id="csvFile" accept=".csv" class="file-input">
-        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-            <button class="action-btn" onclick="importCSV()">🔄 Полный импорт</button>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+            <button class="action-btn" onclick="importCSV()">🔄 Импортировать</button>
             <button class="action-btn" onclick="appendCSV()">➕ Добавить транзакции</button>
-            <button class="action-btn" onclick="checkImportHistory()">📋 История</button>
+            <button class="action-btn" onclick="checkImportHistory()">📋 История импортов</button>
         </div>
     </div>
     <div id="importPreview" class="import-preview" style="display: none;">
