@@ -153,41 +153,43 @@
 
         <!-- Таблица портфеля -->
         <div class="portfolio-table">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h2>📊 Мои активы</h2>
-                <button class="refresh-btn" onclick="refreshPrices()">
-                    <span class="refresh-icon">🔄</span> Обновить цены
-                </button>
-            </div>
-            <div class="table-wrapper" id="tableWrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Монета</th>
-                            <th>Количество</th>
-                            <th>Цена входа</th>
-                            <th>Текущая цена</th>
-                            <th>Стоимость входа</th>
-                            <th>Текущая стоимость</th>
-                            <th>Прибыль</th>
-                            <th>Доля</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="portfolioBody">
-                        <tr>
-                            <td colspan="9" class="empty-state">
-                                📭 Портфель пуст. Добавьте первую монету!
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="scroll-buttons">
-                <button class="scroll-btn" onclick="scrollTable('left')">←</button>
-                <button class="scroll-btn" onclick="scrollTable('right')">→</button>
-            </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <h2>📊 Мои активы</h2>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <button class="delete-all-btn" onclick="deleteAllAssets()" style="background: #991b1b; color: white; border: none; border-radius: 0.5rem; padding: 0.5rem 1rem; cursor: pointer;">🗑️ Удалить всё</button>
+            <button class="refresh-btn" onclick="refreshPrices()">
+                <span class="refresh-icon">🔄</span> Обновить цены
+            </button>
         </div>
+    </div>
+    <div class="table-wrapper" id="tableWrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th> <!-- FIX: Добавляем колонку для номера -->
+                    <th>Монета</th>
+                    <th>Количество</th>
+                    <th>Цена входа</th>
+                    <th>Текущая цена</th>
+                    <th>Стоимость входа</th>
+                    <th>Текущая стоимость</th>
+                    <th>Прибыль</th>
+                    <th>Доля</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="portfolioBody">
+                <tr>
+                    <td colspan="10" class="empty-state">📭 Портфель пуст. Добавьте первую монету или импортируйте CSV!</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="scroll-buttons">
+        <button class="scroll-btn" onclick="scrollTable('left')">←</button>
+        <button class="scroll-btn" onclick="scrollTable('right')">→</button>
+    </div>
+</div>
 
         <!-- Последние действия и уведомления -->
         <div class="charts-grid">

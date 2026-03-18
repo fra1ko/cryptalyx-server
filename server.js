@@ -422,20 +422,23 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
         const fileContent = fs.readFileSync(req.file.path, 'utf8');
         const fileHash = getFileHash(fileContent);
         
-        // Проверяем, не импортировали ли уже этот файл
-        const { data: existingImport } = await supabase
-            .from('import_history')
-            .select('id')
-            .eq('user_id', user_id)
-            .eq('file_hash', fileHash)
-            .maybeSingle();
-        
-        if (existingImport) {
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ 
-                error: 'Этот файл уже был импортирован ранее'
-            });
-        }
+// Проверяем, не импортировали ли уже этот файл
+const { data: existingImport } = await supabase
+    .from('import_history')
+    .select('id')
+    .eq('user_id', user_id)
+    .eq('file_hash', fileHash)
+    .maybeSingle();
+
+if (existingImport) {
+    fs.unlinkSync(req.file.path);
+    // Вместо ошибки - возвращаем успех с информацией
+    return res.json({ 
+        success: true, 
+        message: 'Файл уже был импортирован ранее',
+        already_imported: true
+    });
+}
         
         const lines = fileContent.split('\n');
         console.log(`📊 Всего строк в файле: ${lines.length}`);

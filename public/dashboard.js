@@ -406,174 +406,184 @@ class Portfolio {
     }
 
     render() {
-        const stats = this.getStats();
-        const bestWorst = this.getBestAndWorstAssets();
-        const diversificationScore = this.getDiversificationScore();
-        const riskScore = this.getRiskScore();
-        
-        // Основные метрики
-        const totalPortfolioEl = document.getElementById('totalPortfolioValue');
-        const totalBuyEl = document.getElementById('totalBuyValue');
-        const totalCurrentEl = document.getElementById('totalCurrentValue');
-        const freeUsdtEl = document.getElementById('freeUsdtValue');
-        const profitEl = document.getElementById('profit');
-        const bestAssetEl = document.getElementById('bestAsset');
-        const bestAssetProfitEl = document.getElementById('bestAssetProfit');
-        const worstAssetEl = document.getElementById('worstAsset');
-        const worstAssetProfitEl = document.getElementById('worstAssetProfit');
-        const diversificationScoreEl = document.getElementById('diversificationScore');
-        const diversificationLevelEl = document.getElementById('diversificationLevel');
-        const riskScoreEl = document.getElementById('riskScore');
-        const riskLevelEl = document.getElementById('riskLevel');
-        const currentDateEl = document.getElementById('currentDate');
-        
-        if (totalPortfolioEl) totalPortfolioEl.textContent = `$${stats.totalPortfolioValue.toFixed(2)}`;
-        if (totalBuyEl) totalBuyEl.textContent = `$${stats.totalBuyValue.toFixed(2)}`;
-        if (totalCurrentEl) totalCurrentEl.textContent = `$${stats.totalCurrentValue.toFixed(2)}`;
-        if (freeUsdtEl) freeUsdtEl.textContent = `${this.freeUSDT.toFixed(2)} USDT`;
-        
-        if (profitEl) {
-            profitEl.textContent = `$${stats.profit.toFixed(2)} (${stats.profitPercent.toFixed(2)}%)`;
-            profitEl.className = stats.profit >= 0 ? 'positive' : 'negative';
-        }
-        
-        // Лучший/худший актив
-        if (bestWorst.bestAsset && bestAssetEl && bestAssetProfitEl) {
-            bestAssetEl.textContent = bestWorst.bestAsset.coin;
-            bestAssetProfitEl.textContent = `${bestWorst.bestProfit >= 0 ? '+' : ''}${bestWorst.bestProfit.toFixed(1)}%`;
-            bestAssetProfitEl.className = bestWorst.bestProfit >= 0 ? 'positive' : 'negative';
-        } else {
-            if (bestAssetEl) bestAssetEl.textContent = '—';
-            if (bestAssetProfitEl) bestAssetProfitEl.textContent = '';
-        }
-        
-        if (bestWorst.worstAsset && worstAssetEl && worstAssetProfitEl) {
-            worstAssetEl.textContent = bestWorst.worstAsset.coin;
-            worstAssetProfitEl.textContent = `${bestWorst.worstProfit >= 0 ? '+' : ''}${bestWorst.worstProfit.toFixed(1)}%`;
-            worstAssetProfitEl.className = bestWorst.worstProfit >= 0 ? 'positive' : 'negative';
-        } else {
-            if (worstAssetEl) worstAssetEl.textContent = '—';
-            if (worstAssetProfitEl) worstAssetProfitEl.textContent = '';
-        }
-        
-        // Диверсификация
-        if (diversificationScoreEl) diversificationScoreEl.textContent = `${diversificationScore.toFixed(0)}%`;
-        if (diversificationLevelEl) diversificationLevelEl.textContent = this.getDiversificationLevel(diversificationScore);
-        
-        // Риск
-        if (riskScoreEl) riskScoreEl.textContent = `${riskScore}/10`;
-        if (riskLevelEl) riskLevelEl.textContent = this.getRiskLevel(riskScore);
-        
-        // Дата
-        if (currentDateEl) {
-            currentDateEl.textContent = new Date().toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-        }
-        
-        // FIX: Таблица портфеля с фильтрацией
-        const tbody = document.getElementById('portfolioBody');
-        if (!tbody) return;
-        
-        // FIX: Фильтруем активы: только положительные балансы и стоимость > $1
-        const validAssets = this.assets.filter(asset => {
-            if (asset.amount <= 0) return false;
+    const stats = this.getStats();
+    const bestWorst = this.getBestAndWorstAssets();
+    const diversificationScore = this.getDiversificationScore();
+    const riskScore = this.getRiskScore();
+    
+    // Основные метрики (без изменений)
+    const totalPortfolioEl = document.getElementById('totalPortfolioValue');
+    const totalBuyEl = document.getElementById('totalBuyValue');
+    const totalCurrentEl = document.getElementById('totalCurrentValue');
+    const freeUsdtEl = document.getElementById('freeUsdtValue');
+    const profitEl = document.getElementById('profit');
+    const bestAssetEl = document.getElementById('bestAsset');
+    const bestAssetProfitEl = document.getElementById('bestAssetProfit');
+    const worstAssetEl = document.getElementById('worstAsset');
+    const worstAssetProfitEl = document.getElementById('worstAssetProfit');
+    const diversificationScoreEl = document.getElementById('diversificationScore');
+    const diversificationLevelEl = document.getElementById('diversificationLevel');
+    const riskScoreEl = document.getElementById('riskScore');
+    const riskLevelEl = document.getElementById('riskLevel');
+    const currentDateEl = document.getElementById('currentDate');
+    
+    if (totalPortfolioEl) totalPortfolioEl.textContent = `$${stats.totalPortfolioValue.toFixed(2)}`;
+    if (totalBuyEl) totalBuyEl.textContent = `$${stats.totalBuyValue.toFixed(2)}`;
+    if (totalCurrentEl) totalCurrentEl.textContent = `$${stats.totalCurrentValue.toFixed(2)}`;
+    if (freeUsdtEl) freeUsdtEl.textContent = `${this.freeUSDT.toFixed(2)} USDT`;
+    
+    if (profitEl) {
+        profitEl.textContent = `$${stats.profit.toFixed(2)} (${stats.profitPercent.toFixed(2)}%)`;
+        profitEl.className = stats.profit >= 0 ? 'positive' : 'negative';
+    }
+    
+    // Лучший/худший актив (без изменений)
+    if (bestWorst.bestAsset && bestAssetEl && bestAssetProfitEl) {
+        bestAssetEl.textContent = bestWorst.bestAsset.coin;
+        bestAssetProfitEl.textContent = `${bestWorst.bestProfit >= 0 ? '+' : ''}${bestWorst.bestProfit.toFixed(1)}%`;
+        bestAssetProfitEl.className = bestWorst.bestProfit >= 0 ? 'positive' : 'negative';
+    } else {
+        if (bestAssetEl) bestAssetEl.textContent = '—';
+        if (bestAssetProfitEl) bestAssetProfitEl.textContent = '';
+    }
+    
+    if (bestWorst.worstAsset && worstAssetEl && worstAssetProfitEl) {
+        worstAssetEl.textContent = bestWorst.worstAsset.coin;
+        worstAssetProfitEl.textContent = `${bestWorst.worstProfit >= 0 ? '+' : ''}${bestWorst.worstProfit.toFixed(1)}%`;
+        worstAssetProfitEl.className = bestWorst.worstProfit >= 0 ? 'positive' : 'negative';
+    } else {
+        if (worstAssetEl) worstAssetEl.textContent = '—';
+        if (worstAssetProfitEl) worstAssetProfitEl.textContent = '';
+    }
+    
+    // Диверсификация
+    if (diversificationScoreEl) diversificationScoreEl.textContent = `${diversificationScore.toFixed(0)}%`;
+    if (diversificationLevelEl) diversificationLevelEl.textContent = this.getDiversificationLevel(diversificationScore);
+    
+    // Риск
+    if (riskScoreEl) riskScoreEl.textContent = `${riskScore}/10`;
+    if (riskLevelEl) riskLevelEl.textContent = this.getRiskLevel(riskScore);
+    
+    // Дата
+    if (currentDateEl) {
+        currentDateEl.textContent = new Date().toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+    
+    // ===== ТАБЛИЦА ПОРТФЕЛЯ С СОРТИРОВКОЙ =====
+    const tbody = document.getElementById('portfolioBody');
+    if (!tbody) return;
+    
+    // Фильтруем активы: только положительные балансы и стоимость > $1
+    let validAssets = this.assets.filter(asset => {
+        if (asset.amount <= 0) return false;
+        const currentPrice = this.prices[asset.coin] || 0;
+        const currentValue = asset.amount * currentPrice;
+        const buyValue = asset.amount * asset.price;
+        return currentValue >= 1 || buyValue >= 1;
+    });
+    
+    // FIX: Сортируем от большей доли к меньшей
+    validAssets.sort((a, b) => {
+        const currentPriceA = this.prices[a.coin] || 0;
+        const currentPriceB = this.prices[b.coin] || 0;
+        const shareA = stats.totalCurrentValue > 0 ? ((a.amount * currentPriceA) / stats.totalCurrentValue) : 0;
+        const shareB = stats.totalCurrentValue > 0 ? ((b.amount * currentPriceB) / stats.totalCurrentValue) : 0;
+        return shareB - shareA; // По убыванию доли
+    });
+    
+    if (validAssets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-state">📭 Нет активов стоимостью больше $1</td></tr>';
+        const aiSection = document.getElementById('aiSection');
+        if (aiSection) aiSection.style.display = 'none';
+    } else {
+        let rows = '';
+
+        validAssets.forEach((asset, index) => {
             const currentPrice = this.prices[asset.coin] || 0;
             const currentValue = asset.amount * currentPrice;
             const buyValue = asset.amount * asset.price;
-            return currentValue >= 1 || buyValue >= 1;
+            const profit = currentValue - buyValue;
+            const profitPercent = buyValue > 0 ? (profit / buyValue * 100) : 0;
+            const share = stats.totalCurrentValue > 0 ? (currentValue / stats.totalCurrentValue * 100) : 0;
+
+            rows += `
+                <tr>
+                    <td>${index + 1}</td> <!-- FIX: Порядковый номер -->
+                    <td><strong>${asset.coin}</strong></td>
+                    <td>${asset.amount.toFixed(6)}</td>
+                    <td>$${asset.price.toFixed(2)}</td>
+                    <td>$${currentPrice.toFixed(2)}</td>
+                    <td>$${buyValue.toFixed(2)}</td>
+                    <td>$${currentValue.toFixed(2)}</td>
+                    <td class="${profit >= 0 ? 'positive' : 'negative'}">
+                        ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)} (${profitPercent.toFixed(2)}%)
+                    </td>
+                    <td>${share.toFixed(1)}%</td>
+                    <td><button class="delete-btn" onclick="portfolio.removeAsset(${asset.id})" title="Удалить">🗑️</button></td>
+                </tr>
+            `;
         });
-        
-        if (validAssets.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="empty-state">📭 Нет активов стоимостью больше $1</td></tr>';
-            const aiSection = document.getElementById('aiSection');
-            if (aiSection) aiSection.style.display = 'none';
-        } else {
-            let rows = '';
 
-            validAssets.forEach(asset => {
-                const currentPrice = this.prices[asset.coin] || 0;
-                const currentValue = asset.amount * currentPrice;
-                const buyValue = asset.amount * asset.price;
-                const profit = currentValue - buyValue;
-                const profitPercent = buyValue > 0 ? (profit / buyValue * 100) : 0;
-                const share = stats.totalCurrentValue > 0 ? (currentValue / stats.totalCurrentValue * 100) : 0;
-
-                rows += `
-                    <tr>
-                        <td><strong>${asset.coin}</strong></td>
-                        <td>${asset.amount.toFixed(6)}</td>
-                        <td>$${asset.price.toFixed(2)}</td>
-                        <td>$${currentPrice.toFixed(2)}</td>
-                        <td>$${buyValue.toFixed(2)}</td>
-                        <td>$${currentValue.toFixed(2)}</td>
-                        <td class="${profit >= 0 ? 'positive' : 'negative'}">
-                            ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)} (${profitPercent.toFixed(2)}%)
-                        </td>
-                        <td>${share.toFixed(1)}%</td>
-                        <td><button class="delete-btn" onclick="portfolio.removeAsset(${asset.id})">🗑️</button></td>
-                    </tr>
-                `;
-            });
-
-            tbody.innerHTML = rows;
-            const aiSection = document.getElementById('aiSection');
-            if (aiSection) aiSection.style.display = 'block';
-        }
-        
-        // Последние действия
-        const activityList = document.getElementById('activityList');
-        if (activityList) {
-            if (this.activityLog.length > 0) {
-                activityList.innerHTML = this.activityLog.map(a => `
-                    <div class="activity-item">
-                        <span>${a.action} ${a.details}</span>
-                        <span class="activity-time">${a.time}</span>
-                    </div>
-                `).join('');
-            } else {
-                activityList.innerHTML = '<div class="activity-item"><span>Пока нет действий</span></div>';
-            }
-        }
-        
-        // Уведомления
-        const alertsList = document.getElementById('alertsList');
-        if (alertsList) {
-            const alerts = [];
-            
-            if (validAssets.length === 0) {
-                alerts.push({ type: 'info', text: 'Нет активов стоимостью больше $1' });
-            } else {
-                if (bestWorst.bestProfit > 50) {
-                    alerts.push({ type: 'success', text: `${bestWorst.bestAsset?.coin} вырос на ${bestWorst.bestProfit.toFixed(1)}%!` });
-                }
-                
-                if (bestWorst.worstProfit < -30) {
-                    alerts.push({ type: 'danger', text: `${bestWorst.worstAsset?.coin} упал на ${Math.abs(bestWorst.worstProfit).toFixed(1)}%` });
-                }
-                
-                if (diversificationScore < 30) {
-                    alerts.push({ type: 'warning', text: 'Низкая диверсификация. Добавьте другие монеты' });
-                }
-            }
-            
-            if (alerts.length === 0 && validAssets.length > 0) {
-                alerts.push({ type: 'info', text: 'Все хорошо. Продолжайте в том же духе' });
-            }
-            
-            alertsList.innerHTML = alerts.map(a => `
-                <div class="alert-item ${a.type}">
-                    <span class="alert-icon">${a.type === 'success' ? '✅' : a.type === 'warning' ? '⚠️' : a.type === 'danger' ? '🔴' : 'ℹ️'}</span>
-                    <span class="alert-text">${a.text}</span>
+        tbody.innerHTML = rows;
+        const aiSection = document.getElementById('aiSection');
+        if (aiSection) aiSection.style.display = 'block';
+    }
+    
+    // Последние действия
+    const activityList = document.getElementById('activityList');
+    if (activityList) {
+        if (this.activityLog.length > 0) {
+            activityList.innerHTML = this.activityLog.map(a => `
+                <div class="activity-item">
+                    <span>${a.action} ${a.details}</span>
+                    <span class="activity-time">${a.time}</span>
                 </div>
             `).join('');
+        } else {
+            activityList.innerHTML = '<div class="activity-item"><span>Пока нет действий</span></div>';
+        }
+    }
+    
+    // Уведомления
+    const alertsList = document.getElementById('alertsList');
+    if (alertsList) {
+        const alerts = [];
+        
+        if (validAssets.length === 0) {
+            alerts.push({ type: 'info', text: 'Нет активов стоимостью больше $1' });
+        } else {
+            if (bestWorst.bestProfit > 50) {
+                alerts.push({ type: 'success', text: `${bestWorst.bestAsset?.coin} вырос на ${bestWorst.bestProfit.toFixed(1)}%!` });
+            }
+            
+            if (bestWorst.worstProfit < -30) {
+                alerts.push({ type: 'danger', text: `${bestWorst.worstAsset?.coin} упал на ${Math.abs(bestWorst.worstProfit).toFixed(1)}%` });
+            }
+            
+            if (diversificationScore < 30) {
+                alerts.push({ type: 'warning', text: 'Низкая диверсификация. Добавьте другие монеты' });
+            }
         }
         
-        this.renderAI();
-        this.updateCharts();
+        if (alerts.length === 0 && validAssets.length > 0) {
+            alerts.push({ type: 'info', text: 'Все хорошо. Продолжайте в том же духе' });
+        }
+        
+        alertsList.innerHTML = alerts.map(a => `
+            <div class="alert-item ${a.type}">
+                <span class="alert-icon">${a.type === 'success' ? '✅' : a.type === 'warning' ? '⚠️' : a.type === 'danger' ? '🔴' : 'ℹ️'}</span>
+                <span class="alert-text">${a.text}</span>
+            </div>
+        `).join('');
     }
+    
+    this.renderAI();
+    this.updateCharts();
+}
 
     renderAI() {
         const aiDiv = document.getElementById('aiRecommendations');
@@ -823,9 +833,13 @@ async function importCSV() {
         console.log('📦 Ответ сервера:', data);
         
         if (data.success) {
-            showMessage(`✅ Импортировано ${data.transactions_count} транзакций`, 'success');
+            if (data.already_imported) {
+                showMessage(`ℹ️ Файл уже был импортирован ранее`, 'info');
+            } else {
+                showMessage(`✅ Импортировано ${data.transactions_count} транзакций`, 'success');
+            }
             
-            // Перезагружаем портфель с сервера
+            // ВСЕГДА перезагружаем портфель с сервера
             await loadPortfolioFromServer();
             
             // Обновляем дашборд
@@ -1014,6 +1028,19 @@ function cancelImport() {
     showMessage('Импорт отменен', 'info');
 }
 
+// Удалить все активы
+function deleteAllAssets() {
+    if (!confirm('⚠️ Вы уверены, что хотите удалить ВСЕ активы? Это действие нельзя отменить.')) {
+        return;
+    }
+    
+    portfolio.assets = [];
+    portfolio.activityLog = [];
+    portfolio.save();
+    
+    showMessage('✅ Все активы удалены', 'success');
+}
+
 // Закрываем меню при клике вне
 document.addEventListener('click', function(event) {
     const navLinks = document.querySelector('.nav-links');
@@ -1051,6 +1078,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.toggleMobileMenu = toggleMobileMenu;
     window.scrollTable = scrollTable;
     window.changeChartPeriod = changeChartPeriod;
+    window.deleteAllAssets = deleteAllAssets;
 });
 
 // Скрываем индикатор после прокрутки
