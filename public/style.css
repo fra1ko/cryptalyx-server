@@ -2088,3 +2088,30 @@ td {
     margin-top: 1rem;
     white-space: pre-line;
 }
+
+/* Стили для кнопки в навигации */
+.nav-links .btn-primary {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    padding: 0.5rem 1.25rem;
+    border-radius: 2rem;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+    transition: all 0.2s;
+}
+
+.nav-links .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 10px -1px rgba(59, 130, 246, 0.4);
+}
+
+/* Чтобы кнопка не сливалась */
+.nav-links a:not(.btn-primary) {
+    color: #94a3b8;
+    font-weight: 500;
+    padding: 0.5rem 0;
+}
+
+.nav-links a:not(.btn-primary):hover {
+    color: #f1f5f9;
+}

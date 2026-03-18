@@ -255,84 +255,115 @@ class Portfolio {
         this.updateCharts();
     }
 
-    updateCharts() {
-        const stats = this.getStats();
+updateCharts() {
+    const stats = this.getStats();
+    
+    // График истории портфеля
+    const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
+    if (portfolioCtx) {
+        if (this.portfolioChart) {
+            this.portfolioChart.destroy();
+        }
         
-        const portfolioCtx = document.getElementById('portfolioChart')?.getContext('2d');
-        if (portfolioCtx) {
-            if (this.portfolioChart) {
-                this.portfolioChart.destroy();
+        const dates = [];
+        const values = [];
+        
+        // Вместо случайных чисел используем реальную историю из транзакций
+        // или хотя бы плавные изменения
+        const baseValue = stats.totalPortfolioValue;
+        let days = 30;
+        
+        if (this.chartPeriod === '1d') {
+            days = 1;
+            // Для 1 дня показываем плавные изменения в течение дня
+            for (let i = 24; i >= 0; i--) {
+                const date = new Date();
+                date.setHours(date.getHours() - i);
+                dates.push(date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+                // Плавное изменение без случайных скачков
+                const factor = 0.98 + (i / 24) * 0.04; // от 0.98 до 1.02
+                values.push(baseValue * factor);
             }
-            
-            const dates = [];
-            const values = [];
-            
-            let days = 30;
-            
-            if (this.chartPeriod === '1d') {
-                days = 1;
-                for (let i = 24; i >= 0; i--) {
-                    const date = new Date();
-                    date.setHours(date.getHours() - i);
-                    dates.push(date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
-                    values.push(stats.totalPortfolioValue * (0.99 + Math.random() * 0.02));
-                }
-            } else if (this.chartPeriod === '1w') {
-                days = 7;
-                for (let i = days; i >= 0; i--) {
-                    const date = new Date();
-                    date.setDate(date.getDate() - i);
-                    dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
-                    values.push(stats.totalPortfolioValue * (0.97 + Math.random() * 0.06));
-                }
-            } else if (this.chartPeriod === '1m') {
-                days = 30;
-                for (let i = days; i >= 0; i--) {
-                    const date = new Date();
-                    date.setDate(date.getDate() - i);
-                    dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
-                    values.push(stats.totalPortfolioValue * (0.95 + Math.random() * 0.1));
-                }
-            } else if (this.chartPeriod === '1y') {
-                days = 365;
-                for (let i = days; i >= 0; i -= 7) {
-                    const date = new Date();
-                    date.setDate(date.getDate() - i);
-                    dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
-                    values.push(stats.totalPortfolioValue * (0.85 + Math.random() * 0.3));
-                }
+        } else if (this.chartPeriod === '1w') {
+            days = 7;
+            for (let i = days; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                // Плавное изменение
+                const factor = 0.95 + (i / days) * 0.1; // от 0.95 до 1.05
+                values.push(baseValue * factor);
             }
-            
-            this.portfolioChart = new Chart(portfolioCtx, {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [{
-                        label: 'Стоимость портфеля (USDT)',
-                        data: values,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.2,
-                        fill: true
-                    }]
+        } else if (this.chartPeriod === '1m') {
+            days = 30;
+            for (let i = days; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                // Плавное изменение
+                const factor = 0.9 + (i / days) * 0.2; // от 0.9 до 1.1
+                values.push(baseValue * factor);
+            }
+        } else if (this.chartPeriod === '1y') {
+            days = 365;
+            for (let i = days; i >= 0; i -= 7) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+                // Плавное изменение для года
+                const factor = 0.8 + (i / days) * 0.4; // от 0.8 до 1.2
+                values.push(baseValue * factor);
+            }
+        }
+        
+        this.portfolioChart = new Chart(portfolioCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Стоимость портфеля (USDT)',
+                    data: values,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.3, // Делаем линию более гладкой
+                    fill: true,
+                    pointRadius: this.chartPeriod === '1d' ? 2 : 1,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            grid: { color: '#334155' },
-                            ticks: { color: '#94a3b8' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#94a3b8', maxTicksLimit: 8 }
+                scales: {
+                    y: {
+                        grid: { color: '#334155' },
+                        ticks: { 
+                            color: '#94a3b8',
+                            callback: function(value) {
+                                return '$' + value.toFixed(0);
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { 
+                            color: '#94a3b8',
+                            maxTicksLimit: this.chartPeriod === '1y' ? 12 : 8
                         }
                     }
+                },
+                elements: {
+                    line: {
+                        tension: 0.3 // Сглаживание линии
+                    }
                 }
-            });
-        }
+            }
+        });
+    }
 
         const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
         if (categoryCtx) {
@@ -760,14 +791,23 @@ async function loadPortfolioFromServer() {
             // Очищаем текущий портфель
             portfolio.assets = [];
             
+            // Получаем средние цены из базы
+            const { data: pricesData } = await supabase
+                .from('user_portfolio')
+                .select('avg_prices')
+                .eq('user_id', data.user_id)
+                .single();
+            
+            const avgPrices = pricesData?.avg_prices || {};
+            
             // Добавляем монеты из сервера с ценами
             for (const [coin, amount] of Object.entries(data.portfolio)) {
                 if (amount > 0) {
-                    const avgPrice = data.prices?.[coin] || 0;
+                    const avgPrice = avgPrices[coin] || 0;
                     portfolio.assets.push({
                         coin,
                         amount,
-                        price: avgPrice, // Сохраняем среднюю цену
+                        price: avgPrice, // Важно: сохраняем среднюю цену
                         id: Date.now() + Math.random()
                     });
                 }
@@ -1043,6 +1083,28 @@ function deleteAllAssets() {
     portfolio.save();
     
     showMessage('✅ Все активы удалены', 'success');
+}
+
+// Функция обновления времени
+function updateTime() {
+    const timeEl = document.getElementById('currentTime');
+    if (timeEl) {
+        const now = new Date();
+        timeEl.textContent = now.toLocaleTimeString('ru-RU', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+}
+
+// Обновляем время каждую секунду
+setInterval(updateTime, 1000);
+
+// В render() добавь:
+const timeEl = document.getElementById('currentTime');
+if (timeEl) {
+    updateTime();
 }
 
 // Закрываем меню при клике вне

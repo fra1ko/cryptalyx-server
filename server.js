@@ -1494,6 +1494,7 @@ async function calculatePortfolioWithPrices(user_id) {
     
     // Словарь для хранения баланса и средней цены
     const portfolio = {}; // { coin: { amount: 0, totalValue: 0, avgPrice: 0 } }
+    const buyTransactions = {}; // для расчета средней цены покупок
     
     transactions.forEach(tx => {
         if (!portfolio[tx.coin]) {
@@ -1509,8 +1510,14 @@ async function calculatePortfolioWithPrices(user_id) {
         
         // Для расчета средней цены учитываем только покупки
         if (tx.type === 'TRADE' && tx.direction === 'Buy' && tx.price > 0) {
-            // Увеличиваем общую стоимость с учетом нового количества
-            portfolio[tx.coin].totalValue += Math.abs(tx.cash_flow) * tx.price;
+            if (!buyTransactions[tx.coin]) {
+                buyTransactions[tx.coin] = {
+                    totalAmount: 0,
+                    totalCost: 0
+                };
+            }
+            buyTransactions[tx.coin].totalAmount += Math.abs(tx.cash_flow);
+            buyTransactions[tx.coin].totalCost += Math.abs(tx.cash_flow) * tx.price;
         }
     });
     
@@ -1523,9 +1530,9 @@ async function calculatePortfolioWithPrices(user_id) {
         if (Math.abs(data.amount) > 0.00000001 && data.amount > 0) {
             finalPortfolio[coin] = data.amount;
             
-            // Средняя цена = общая стоимость / количество
-            if (data.amount > 0 && data.totalValue > 0) {
-                finalPrices[coin] = data.totalValue / data.amount;
+            // Средняя цена = общая стоимость покупок / общее количество купленных монет
+            if (buyTransactions[coin] && buyTransactions[coin].totalAmount > 0) {
+                finalPrices[coin] = buyTransactions[coin].totalCost / buyTransactions[coin].totalAmount;
             } else {
                 finalPrices[coin] = 0;
             }
@@ -1541,7 +1548,7 @@ async function calculatePortfolioWithPrices(user_id) {
         .upsert({
             user_id,
             portfolio: finalPortfolio,
-            avg_prices: finalPrices, // Нужно добавить эту колонку в таблицу
+            avg_prices: finalPrices,
             last_updated: new Date().toISOString()
         });
     
