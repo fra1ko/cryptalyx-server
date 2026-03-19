@@ -800,7 +800,7 @@ async function loadPortfolioFromServer() {
             
             // Добавляем монеты из сервера с ценами
             for (const [coin, amount] of Object.entries(data.portfolio)) {
-                if (amount > 0) {
+                if (amount > 0.000001) {
                     const avgPrice = data.prices?.[coin] || 0;
                     portfolio.assets.push({
                         coin,

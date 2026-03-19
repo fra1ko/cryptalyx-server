@@ -572,25 +572,15 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
 });
 
 // Добавление новых транзакций
-app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (req, res) => {
+app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res) => {
     try {
         const user_id = req.user.id;
         
         if (!req.file) {
             return res.status(400).json({ error: 'Файл не загружен' });
         }
-        
-        // Получаем дату последней транзакции
-        const { data: lastTx } = await supabase
-            .from('user_transactions')
-            .select('timestamp')
-            .eq('user_id', user_id)
-            .order('timestamp', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-        
-        const lastDate = lastTx ? new Date(lastTx.timestamp) : null;
-        console.log(`📅 Последняя транзакция: ${lastDate}`);
+
+        console.log('📥 Начинаем импорт CSV. Файл:', req.file.path);
         
         const fileContent = fs.readFileSync(req.file.path, 'utf8');
         const fileHash = getFileHash(fileContent);
@@ -615,9 +605,22 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
         }
         
         const lines = fileContent.split('\n');
+        console.log(`📊 Всего строк в файле: ${lines.length}`);
+        
+        // Индексы колонок для Bybit
+        const currencyIdx = 0;
+        const typeIdx = 2;
+        const directionIdx = 3;
+        const quantityIdx = 4;
+        const priceIdx = 6;
+        const cashFlowIdx = 9;
+        const timeIdx = 15;
         
         const transactions = [];
-        let newCount = 0;
+        let processedCount = 0;
+        let skippedCount = 0;
+        let firstDate = null;
+        let lastDate = null;
         
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -626,68 +629,83 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
             const parts = line.split(',');
             if (parts.length < 10) continue;
             
-            const currency = parts[0];
-            if (currency === 'USDT') continue;
+            const currency = parts[currencyIdx];
             
-            const timeStr = parts[15];
+            // Пропускаем фьючерсы
+            if (currency === 'USDT') {
+                skippedCount++;
+                continue;
+            }
+            
+            const type = parts[typeIdx];
+            const direction = parts[directionIdx];
+            const quantity = parseFloat(parts[quantityIdx]);
+            const price = parseFloat(parts[priceIdx]);
+            const cashFlow = parseFloat(parts[cashFlowIdx]);
+            const timeStr = parts[timeIdx];
+            
             if (!timeStr) continue;
             
             const timestamp = parseBybitDate(timeStr);
             
-            // Пропускаем старые транзакции
-            if (lastDate && timestamp <= lastDate) {
-                continue;
+            if (!firstDate || timestamp < firstDate) firstDate = timestamp;
+            if (!lastDate || timestamp > lastDate) lastDate = timestamp;
+            
+            // Проверяем, есть ли уже такая транзакция
+            const { data: existing } = await supabase
+                .from('user_transactions')
+                .select('id')
+                .eq('user_id', user_id)
+                .eq('coin', currency)
+                .eq('timestamp', timestamp.toISOString())
+                .eq('type', type)
+                .eq('cash_flow', isNaN(cashFlow) ? 0 : cashFlow)
+                .maybeSingle();
+            
+            if (!existing) {
+                transactions.push({
+                    user_id,
+                    coin: currency,
+                    type,
+                    direction: direction || null,
+                    quantity: isNaN(quantity) ? 0 : quantity,
+                    price: isNaN(price) ? 0 : price,
+                    cash_flow: isNaN(cashFlow) ? 0 : cashFlow,
+                    timestamp: timestamp.toISOString()
+                });
             }
             
-            const type = parts[2];
-            const direction = parts[3];
-            const quantity = parseFloat(parts[4]);
-            const price = parseFloat(parts[6]);
-            const cashFlow = parseFloat(parts[9]);
-            
-            transactions.push({
-                user_id,
-                coin: currency,
-                type,
-                direction: direction || null,
-                quantity: isNaN(quantity) ? 0 : quantity,
-                price: isNaN(price) ? 0 : price,
-                cash_flow: isNaN(cashFlow) ? 0 : cashFlow,
-                timestamp: timestamp.toISOString()
-            });
-            
-            newCount++;
+            processedCount++;
         }
         
         fs.unlinkSync(req.file.path);
         
+        console.log(`✅ Найдено ${transactions.length} новых спотовых транзакций, пропущено ${skippedCount} фьючерсных`);
+        
         if (transactions.length === 0) {
             return res.json({ 
-                success: true, 
-                message: 'Новых транзакций не найдено',
-                new_count: 0
+                success: true,
+                transactions_count: 0,
+                message: 'Новых транзакций не найдено'
             });
         }
         
-        // Сохраняем новые транзакции
-        const chunkSize = 1000;
+        // Сохраняем транзакции по одной (медленнее, но надежнее)
         let insertedCount = 0;
         
-        for (let i = 0; i < transactions.length; i += chunkSize) {
-            const chunk = transactions.slice(i, i + chunkSize);
+        for (const tx of transactions) {
             const { error } = await supabase
                 .from('user_transactions')
-                .insert(chunk);
+                .insert(tx);
             
-            if (error) {
-                console.error('❌ Ошибка сохранения чанка:', error);
-                if (!error.message.includes('duplicate key')) {
-                    throw error;
-                }
+            if (!error) {
+                insertedCount++;
             } else {
-                insertedCount += chunk.length;
+                console.log('⚠️ Ошибка вставки транзакции:', error.message);
             }
         }
+        
+        console.log(`✅ Сохранено ${insertedCount} из ${transactions.length} транзакций`);
         
         // Сохраняем историю импорта
         if (insertedCount > 0) {
@@ -698,8 +716,8 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
                     filename: req.file.originalname,
                     file_hash: fileHash,
                     transactions_count: insertedCount,
-                    first_date: null,
-                    last_date: null
+                    first_date: firstDate?.toISOString(),
+                    last_date: lastDate?.toISOString()
                 });
         }
         
@@ -708,15 +726,18 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
         
         res.json({ 
             success: true, 
-            new_count: insertedCount,
+            transactions_count: insertedCount,
+            skipped_count: skippedCount,
+            first_date: firstDate,
+            last_date: lastDate,
             portfolio: portfolio?.portfolio || {},
             prices: portfolio?.prices || {},
-            message: `✅ Добавлено ${insertedCount} новых транзакций`
+            message: `✅ Импортировано ${insertedCount} транзакций`
         });
         
     } catch (error) {
-        console.error('❌ Ошибка добавления транзакций:', error);
-        res.status(500).json({ error: 'Ошибка добавления транзакций: ' + error.message });
+        console.error('❌ CSV import error:', error);
+        res.status(500).json({ error: 'Ошибка импорта CSV: ' + error.message });
     }
 });
 
@@ -731,7 +752,12 @@ app.get('/api/portfolio', verifyToken, async (req, res) => {
             .eq('user_id', user_id)
             .maybeSingle();
         
-        if (error || !data) {
+        if (error) {
+            console.error('❌ Ошибка получения портфеля:', error);
+            return res.status(500).json({ error: 'Ошибка базы данных' });
+        }
+        
+        if (!data) {
             return res.json({ 
                 portfolio: {}, 
                 prices: {}, 
@@ -740,7 +766,7 @@ app.get('/api/portfolio', verifyToken, async (req, res) => {
         }
         
         res.json({
-            portfolio: data.portfolio,
+            portfolio: data.portfolio || {},
             prices: data.avg_prices || {},
             last_updated: data.last_updated
         });
@@ -1546,9 +1572,10 @@ app.get('/download/:filename', async (req, res) => {
 async function calculatePortfolioWithPrices(user_id) {
     console.log(`📊 Пересчет портфеля для пользователя ${user_id}`);
     
+    // Получаем все транзакции пользователя
     const { data: transactions, error } = await supabase
         .from('user_transactions')
-        .select('coin, cash_flow, price, timestamp, type, direction')
+        .select('*')
         .eq('user_id', user_id)
         .order('timestamp', { ascending: true });
     
@@ -1557,49 +1584,59 @@ async function calculatePortfolioWithPrices(user_id) {
         return null;
     }
     
-    // Словарь для хранения баланса и средней цены
-    const portfolio = {};
-    const buyTransactions = {};
+    console.log(`📊 Получено ${transactions.length} транзакций`);
+    
+    // Словари для хранения данных
+    const balances = {};        // текущий баланс
+    const buyTotals = {};       // для расчета средней цены покупок
+    const allBuys = {};         // все покупки для истории
     
     transactions.forEach(tx => {
-        if (!portfolio[tx.coin]) {
-            portfolio[tx.coin] = {
-                amount: 0,
-                totalValue: 0
-            };
+        const coin = tx.coin;
+        
+        // Инициализируем если нужно
+        if (!balances[coin]) {
+            balances[coin] = 0;
+            buyTotals[coin] = { totalAmount: 0, totalCost: 0 };
+            allBuys[coin] = [];
         }
         
-        // Cash flow уже учитывает направление (+ для покупок, - для продаж)
-        portfolio[tx.coin].amount += tx.cash_flow;
+        // Обновляем баланс (cash_flow уже учитывает знак)
+        balances[coin] += tx.cash_flow;
         
         // Для расчета средней цены учитываем только покупки
         if (tx.type === 'TRADE' && tx.direction === 'Buy' && tx.price > 0 && tx.cash_flow > 0) {
-            if (!buyTransactions[tx.coin]) {
-                buyTransactions[tx.coin] = {
-                    totalAmount: 0,
-                    totalCost: 0
-                };
-            }
-            buyTransactions[tx.coin].totalAmount += tx.cash_flow;
-            buyTransactions[tx.coin].totalCost += tx.cash_flow * tx.price;
+            buyTotals[coin].totalAmount += tx.cash_flow;
+            buyTotals[coin].totalCost += tx.cash_flow * tx.price;
+            allBuys[coin].push({
+                amount: tx.cash_flow,
+                price: tx.price,
+                time: tx.timestamp
+            });
         }
+        
+        // Продажи не влияют на среднюю цену покупки
     });
     
-    // Считаем среднюю цену и фильтруем
+    // Формируем итоговый портфель (только положительные балансы)
     const finalPortfolio = {};
     const finalPrices = {};
+    const buyPrices = {};
     
-    for (const [coin, data] of Object.entries(portfolio)) {
-        // Оставляем только положительные балансы
-        if (Math.abs(data.amount) > 0.00000001 && data.amount > 0) {
-            finalPortfolio[coin] = data.amount;
+    for (const [coin, balance] of Object.entries(balances)) {
+        // Оставляем только монеты с положительным балансом > 0.000001
+        if (Math.abs(balance) > 0.000001 && balance > 0) {
+            finalPortfolio[coin] = balance;
             
-            // Средняя цена = общая стоимость покупок / общее количество купленных монет
-            if (buyTransactions[coin] && buyTransactions[coin].totalAmount > 0) {
-                finalPrices[coin] = buyTransactions[coin].totalCost / buyTransactions[coin].totalAmount;
+            // Средняя цена = общая стоимость всех покупок / общее количество купленных
+            if (buyTotals[coin] && buyTotals[coin].totalAmount > 0) {
+                finalPrices[coin] = buyTotals[coin].totalCost / buyTotals[coin].totalAmount;
             } else {
                 finalPrices[coin] = 0;
             }
+            
+            // Сохраняем все покупки для возможного пересчета
+            buyPrices[coin] = allBuys[coin];
         }
     }
     
@@ -1613,6 +1650,7 @@ async function calculatePortfolioWithPrices(user_id) {
             user_id,
             portfolio: finalPortfolio,
             avg_prices: finalPrices,
+            buy_prices: buyPrices,
             last_updated: new Date().toISOString()
         });
     
