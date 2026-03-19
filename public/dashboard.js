@@ -785,29 +785,27 @@ async function loadPortfolioFromServer() {
                 'Authorization': `Bearer ${token}`
             }
         });
+        
+        if (!response.ok) {
+            console.error('❌ Ошибка ответа сервера:', response.status);
+            return false;
+        }
+        
         const data = await response.json();
+        console.log('📦 Данные с сервера:', data);
         
         if (data.portfolio && Object.keys(data.portfolio).length > 0) {
             // Очищаем текущий портфель
             portfolio.assets = [];
             
-            // Получаем средние цены из базы
-            const { data: pricesData } = await supabase
-                .from('user_portfolio')
-                .select('avg_prices')
-                .eq('user_id', data.user_id)
-                .single();
-            
-            const avgPrices = pricesData?.avg_prices || {};
-            
             // Добавляем монеты из сервера с ценами
             for (const [coin, amount] of Object.entries(data.portfolio)) {
                 if (amount > 0) {
-                    const avgPrice = avgPrices[coin] || 0;
+                    const avgPrice = data.prices?.[coin] || 0;
                     portfolio.assets.push({
                         coin,
                         amount,
-                        price: avgPrice, // Важно: сохраняем среднюю цену
+                        price: avgPrice,
                         id: Date.now() + Math.random()
                     });
                 }
@@ -816,6 +814,8 @@ async function loadPortfolioFromServer() {
             portfolio.save();
             console.log('📦 Портфель загружен с сервера:', portfolio.assets);
             return true;
+        } else {
+            console.log('📭 Портфель пуст');
         }
     } catch (error) {
         console.error('❌ Ошибка загрузки портфеля:', error);
@@ -942,6 +942,7 @@ async function appendCSV() {
         });
         
         const data = await response.json();
+        console.log('📦 Ответ сервера (append):', data);
         
         if (data.success) {
             if (data.new_count > 0) {
@@ -951,9 +952,12 @@ async function appendCSV() {
             } else {
                 showMessage('ℹ️ Новых транзакций не найдено', 'info');
             }
-            // FIX: Сбрасываем input файла
             fileInput.value = '';
             
+        } else if (data.already_imported) {
+            const importDate = new Date(data.imported_at).toLocaleString('ru-RU');
+            showMessage(`ℹ️ Файл "${data.filename}" уже был импортирован ${importDate}`, 'info');
+            fileInput.value = '';
         } else {
             showMessage('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         }

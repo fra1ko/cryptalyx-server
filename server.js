@@ -406,7 +406,7 @@ async function calculatePortfolio(user_id) {
     return finalPortfolio;
 }
 
-// Импорт CSV
+// Импорт CSV - исправляем проблему с RETURNING
 app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res) => {
     try {
         const { exchange } = req.body;
@@ -511,16 +511,15 @@ app.post('/api/import/csv', verifyToken, upload.single('file'), async (req, res)
             });
         }
         
-        // Сохраняем транзакции по 1000 записей
+        // Сохраняем транзакции по 1000 записей - убираем RETURNING
         const chunkSize = 1000;
         let insertedCount = 0;
         
         for (let i = 0; i < transactions.length; i += chunkSize) {
             const chunk = transactions.slice(i, i + chunkSize);
-            const { error, count } = await supabase
+            const { error } = await supabase
                 .from('user_transactions')
-                .insert(chunk)
-                .select('count');
+                .insert(chunk);
             
             if (error) {
                 console.error('❌ Ошибка сохранения чанка:', error);
@@ -594,6 +593,27 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
         console.log(`📅 Последняя транзакция: ${lastDate}`);
         
         const fileContent = fs.readFileSync(req.file.path, 'utf8');
+        const fileHash = getFileHash(fileContent);
+        
+        // Проверяем, не импортировали ли уже этот файл
+        const { data: existingImport } = await supabase
+            .from('import_history')
+            .select('id, filename, imported_at')
+            .eq('user_id', user_id)
+            .eq('file_hash', fileHash)
+            .maybeSingle();
+        
+        if (existingImport) {
+            fs.unlinkSync(req.file.path);
+            return res.json({ 
+                success: false,
+                already_imported: true,
+                message: 'Этот файл уже был импортирован',
+                imported_at: existingImport.imported_at,
+                filename: existingImport.filename
+            });
+        }
+        
         const lines = fileContent.split('\n');
         
         const transactions = [];
@@ -651,19 +671,47 @@ app.post('/api/import/csv/append', verifyToken, upload.single('file'), async (re
         
         // Сохраняем новые транзакции
         const chunkSize = 1000;
+        let insertedCount = 0;
+        
         for (let i = 0; i < transactions.length; i += chunkSize) {
             const chunk = transactions.slice(i, i + chunkSize);
-            await supabase.from('user_transactions').insert(chunk);
+            const { error } = await supabase
+                .from('user_transactions')
+                .insert(chunk);
+            
+            if (error) {
+                console.error('❌ Ошибка сохранения чанка:', error);
+                if (!error.message.includes('duplicate key')) {
+                    throw error;
+                }
+            } else {
+                insertedCount += chunk.length;
+            }
+        }
+        
+        // Сохраняем историю импорта
+        if (insertedCount > 0) {
+            await supabase
+                .from('import_history')
+                .insert({
+                    user_id,
+                    filename: req.file.originalname,
+                    file_hash: fileHash,
+                    transactions_count: insertedCount,
+                    first_date: null,
+                    last_date: null
+                });
         }
         
         // Пересчитываем портфель
-        const portfolio = await calculatePortfolio(user_id);
+        const portfolio = await calculatePortfolioWithPrices(user_id);
         
         res.json({ 
             success: true, 
-            new_count: newCount,
-            portfolio: portfolio,
-            message: `✅ Добавлено ${newCount} новых транзакций`
+            new_count: insertedCount,
+            portfolio: portfolio?.portfolio || {},
+            prices: portfolio?.prices || {},
+            message: `✅ Добавлено ${insertedCount} новых транзакций`
         });
         
     } catch (error) {
@@ -1510,15 +1558,14 @@ async function calculatePortfolioWithPrices(user_id) {
     }
     
     // Словарь для хранения баланса и средней цены
-    const portfolio = {}; // { coin: { amount: 0, totalValue: 0, avgPrice: 0 } }
-    const buyTransactions = {}; // для расчета средней цены покупок
+    const portfolio = {};
+    const buyTransactions = {};
     
     transactions.forEach(tx => {
         if (!portfolio[tx.coin]) {
             portfolio[tx.coin] = {
                 amount: 0,
-                totalValue: 0,
-                avgPrice: 0
+                totalValue: 0
             };
         }
         
@@ -1526,15 +1573,15 @@ async function calculatePortfolioWithPrices(user_id) {
         portfolio[tx.coin].amount += tx.cash_flow;
         
         // Для расчета средней цены учитываем только покупки
-        if (tx.type === 'TRADE' && tx.direction === 'Buy' && tx.price > 0) {
+        if (tx.type === 'TRADE' && tx.direction === 'Buy' && tx.price > 0 && tx.cash_flow > 0) {
             if (!buyTransactions[tx.coin]) {
                 buyTransactions[tx.coin] = {
                     totalAmount: 0,
                     totalCost: 0
                 };
             }
-            buyTransactions[tx.coin].totalAmount += Math.abs(tx.cash_flow);
-            buyTransactions[tx.coin].totalCost += Math.abs(tx.cash_flow) * tx.price;
+            buyTransactions[tx.coin].totalAmount += tx.cash_flow;
+            buyTransactions[tx.coin].totalCost += tx.cash_flow * tx.price;
         }
     });
     
